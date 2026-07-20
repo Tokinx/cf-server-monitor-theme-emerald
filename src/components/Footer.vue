@@ -60,7 +60,7 @@ const showFiling = computed(() => showIcp.value || showPolice.value)
             href="https://github.com/Tokinx/komari-theme-emerald" target="_blank" rel="noopener noreferrer"
             class="transition-opacity hover:opacity-80"
           >
-            <span class="font-medium text-foreground">Emerald for CSM</span>
+            <span class="font-medium text-foreground">Emerald</span>
           </a>
         </DataTooltip>
       </div>
