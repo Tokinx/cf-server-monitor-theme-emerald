@@ -20,6 +20,7 @@ const HOP_BY_HOP_HEADERS = new Set([
   'transfer-encoding',
   'upgrade',
 ])
+const RESPONSE_HEADERS_TO_SKIP = new Set([...HOP_BY_HOP_HEADERS, 'content-encoding'])
 const PROXY_PATH_REGEX = /^\/(?:api|flags|os-icons)(?:\/|$)/
 const TRAILING_SLASHES_REGEX = /\/+$/
 
@@ -81,7 +82,8 @@ export default async function handler(request: VercelRequest, response: VercelRe
 
     response.status(upstream.status)
     upstream.headers.forEach((value, key) => {
-      if (!HOP_BY_HOP_HEADERS.has(key))
+      // Node Fetch has already decoded the upstream body. Do not forward its old encoding.
+      if (!RESPONSE_HEADERS_TO_SKIP.has(key))
         response.setHeader(key, value)
     })
     response.send(Buffer.from(await upstream.arrayBuffer()))
