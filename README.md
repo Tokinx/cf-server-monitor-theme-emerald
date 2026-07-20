@@ -24,7 +24,7 @@
 - Vercel：设置项目环境变量 `API_BASE=https://monitor.example.com`。Vercel 配置会自动启用 `PROXY_BACKEND=true`，并将 `/api`、`/flags`、`/os-icons` 转发到该后端。
 - Cloudflare Workers：设置 Worker 变量 `API_BASE=https://monitor.example.com`。`wrangler.toml` 会构建静态文件并启用同源代理，WebSocket 也会被转发。
 - Cloudflare Pages：构建命令使用 `bun run build:cloudflare`，输出目录为 `dist`，并设置 Pages 环境变量 `API_BASE`。仓库内的 `functions/_middleware.ts` 会代理相同路径。
-- GitHub Pages：启用仓库的 `Deploy GitHub Pages` Action，并在仓库 Settings > Secrets and variables > Actions > Variables 中设置 `API_BASE`。GitHub Pages 不能运行反向代理，因此使用后端直连模式。
+- GitHub Pages：首次使用前进入仓库 Settings > Pages，将 Build and deployment 的 Source 设置为 `GitHub Actions`；然后启用仓库的 `Deploy GitHub Pages` Action，并在 Settings > Secrets and variables > Actions > Variables 中设置 `API_BASE`。GitHub Pages 不能运行反向代理，因此使用后端直连模式。默认 `GITHUB_TOKEN` 无法代替这次 Pages 启用操作。
 
 `API_BASE` 是 CF Server Monitor Worker 的地址，例如 `https://monitor.example.com`。代理模式只支持单个后端地址。
 

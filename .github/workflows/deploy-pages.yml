@@ -32,9 +32,9 @@ jobs:
           API_BASE: ${{ vars.API_BASE }}
           BASE_PATH: ./
           PROXY_BACKEND: false
-      - uses: actions/configure-pages@v5
-      - uses: actions/upload-pages-artifact@v3
+      - uses: actions/configure-pages@v6
+      - uses: actions/upload-pages-artifact@v4
         with:
           path: dist
       - id: deployment
-        uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@v5
