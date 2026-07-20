@@ -7,11 +7,11 @@ import {
   cfRequest,
   fetchAllServers,
   fetchSiteConfigs,
-  getApiBases,
   getDataUpdateIntervalMs,
   getDisplayUuid,
   getRegisteredServerIds,
   getSharedApi,
+  getWebSocketBases,
   hasMultipleApiBases,
   isEnabledValue,
   isProxyWebSocketEnabled,
@@ -219,7 +219,7 @@ class InitManager {
   }
 
   private connectAllSockets(): void {
-    getApiBases().forEach((baseUrl, apiIndex) => this.connectSocket(baseUrl, apiIndex))
+    getWebSocketBases().forEach((baseUrl, apiIndex) => this.connectSocket(baseUrl, apiIndex))
   }
 
   private applyLiveSample(apiIndex: number, sample: LiveSample): void {

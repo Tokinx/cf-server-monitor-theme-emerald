@@ -21,7 +21,7 @@
 
 部署后在平台设置 `API_BASE`，然后重新部署或保存变量：
 
-- Vercel：设置项目环境变量 `API_BASE=https://monitor.example.com`。Vercel 配置会自动启用 `PROXY_BACKEND=true`，并将 `/api`、`/flags`、`/os-icons` 转发到该后端。
+- Vercel：设置项目环境变量 `API_BASE=https://monitor.example.com`。`build:vercel` 会自动启用 HTTP 代理，将 `/api`、`/flags`、`/os-icons` 转发到该后端；WebSocket 会直接连接 `API_BASE`，不经过 Vercel Function。后端必须允许 Vercel 站点的 `Origin`。
 - Cloudflare Workers：默认不启用代理。直连模式下，在构建环境设置 `API_BASE=https://monitor.example.com`；需要代理时，同时设置构建环境和 Worker 变量 `PROXY_BACKEND=true`，并设置运行时变量 `API_BASE`，此时 WebSocket 也会被转发。
 - Cloudflare Pages：默认不启用代理。直连模式下，在构建环境设置 `API_BASE=https://monitor.example.com`；需要代理时设置 Pages 环境变量 `PROXY_BACKEND=true` 和 `API_BASE`，仓库内的 `functions/_middleware.ts` 会代理相同路径。
 - GitHub Pages：首次使用前进入仓库 Settings > Pages，将 Build and deployment 的 Source 设置为 `GitHub Actions`；然后启用仓库的 `Deploy GitHub Pages` Action，并在 Settings > Secrets and variables > Actions > Variables 中设置 `API_BASE`。GitHub Pages 不能运行反向代理，因此使用后端直连模式。默认 `GITHUB_TOKEN` 无法代替这次 Pages 启用操作。
@@ -51,7 +51,7 @@ BASE_PATH=./
 
 `API_BASE` 支持用英文逗号配置多个 Worker。开发模式会把同源 `/api` 请求代理到单个 `API_BASE`，避免本地 CORS 限制。
 
-当设置 `PROXY_BACKEND=true` 时，前端不再把 `API_BASE` 写入浏览器请求地址，而是使用同源 `/api`、`/flags/xxx` 和 `/os-icons/xxx`。这要求部署平台提供反向代理；Vercel、Cloudflare Workers 和 Cloudflare Pages 已提供对应配置。Vercel 因平台限制使用轮询更新，Cloudflare 部署保留 WebSocket 实时更新。
+当设置 `PROXY_BACKEND=true` 时，前端不再把 `API_BASE` 写入浏览器请求地址，而是使用同源 `/api`、`/flags/xxx` 和 `/os-icons/xxx`。这要求部署平台提供反向代理；Vercel、Cloudflare Workers 和 Cloudflare Pages 已提供对应配置。Vercel 的 `build:vercel` 会让 HTTP 使用 Function 代理、WebSocket 直连 `API_BASE`，避开不支持升级的 Function；Cloudflare Worker 和 Pages 的代理会透传 WebSocket 升级，保持实时更新。
 
 ## 构建
 

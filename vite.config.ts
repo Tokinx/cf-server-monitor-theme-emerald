@@ -12,6 +12,7 @@ const LESS_THAN_REGEX = /</g
 const GREATER_THAN_REGEX = />/g
 const TITLE_TAG_REGEX = /<title>.*<\/title>/
 const API_BASE_META_REGEX = /<meta name="apiBase" content="[^"]*"\s*\/?>/
+const WEBSOCKET_BASE_META_REGEX = /<meta name="webSocketBase" content="[^"]*"\s*\/?>/
 const PROXY_BACKEND_META_REGEX = /<meta name="proxyBackend" content="[^"]*"\s*\/?>/
 const PROXY_WEBSOCKET_META_REGEX = /<meta name="proxyWebSocket" content="[^"]*"\s*\/?>/
 
@@ -54,8 +55,13 @@ function normalizeOrigin(value: string): string | null {
 export default defineConfig(({ mode, command }) => {
   const env = loadEnv(mode, process.cwd(), '')
   const apiBases = splitList(env.API_BASE).map(normalizeOrigin).filter((value): value is string => Boolean(value))
-  const proxyBackend = env.PROXY_BACKEND?.toLowerCase() === 'true'
-  const proxyWebSocket = env.PROXY_WEBSOCKET?.toLowerCase() !== 'false'
+  const isVercelBuild = mode === 'vercel'
+  // Vercel Functions can proxy HTTP requests, but cannot relay WebSocket upgrades.
+  const proxyBackend = isVercelBuild || env.PROXY_BACKEND?.toLowerCase() === 'true'
+  const webSocketBases = isVercelBuild ? apiBases.slice(0, 1) : []
+  const proxyWebSocket = isVercelBuild
+    ? webSocketBases.length > 0
+    : env.PROXY_WEBSOCKET?.toLowerCase() !== 'false'
   const cspApi = splitList(env.CSP_API).map(normalizeOrigin).filter((value): value is string => Boolean(value))
   const cspStatic = splitList(env.CSP_STATIC).map(normalizeOrigin).filter((value): value is string => Boolean(value))
   const outboundProxy = env.HTTPS_PROXY || env.HTTP_PROXY
@@ -104,6 +110,10 @@ export default defineConfig(({ mode, command }) => {
             )
           }
           if (command === 'build') {
+            result = result.replace(
+              WEBSOCKET_BASE_META_REGEX,
+              `<meta name="webSocketBase" content="${escapeHtml(webSocketBases.join(','))}" />`,
+            )
             result = result.replace(
               PROXY_BACKEND_META_REGEX,
               `<meta name="proxyBackend" content="${proxyBackend ? 'true' : 'false'}" />`,

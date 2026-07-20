@@ -210,6 +210,12 @@ export function getApiBases(): string[] {
   return [typeof window === 'undefined' ? '' : window.location.origin]
 }
 
+export function getWebSocketBases(): string[] {
+  const configured = getMetaContent('webSocketBase')
+  const bases = configured.split(',').map(normalizeBase).filter(Boolean)
+  return bases.length ? [...new Set(bases)] : getApiBases()
+}
+
 export function getApiAssetUrl(path: string, apiIndex = 0): string {
   const bases = getApiBases()
   const base = bases[apiIndex] ?? bases[0] ?? ''
