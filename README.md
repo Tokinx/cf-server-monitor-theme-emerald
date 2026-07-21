@@ -22,7 +22,7 @@
 |  | Vercel | Cloudflare | EdgeOne | Github Pages |
 | ---- | ---- | ---- | ---- | ---- |
 |  | [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/Tokinx/cf-server-monitor-theme-emerald) | [![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/Tokinx/cf-server-monitor-theme-emerald) | [![使用 EdgeOne Makers 部署](https://cdnstatic.tencentcs.com/edgeone/pages/deploy.svg)](https://edgeone.ai/pages/new?repository-url=https://github.com/Tokinx/cf-server-monitor-theme-emerald) | / |
-| API_BASE | https://monitor.example.com |
+| API_BASE | | https://monitor.example.com |
 | PROXY_BACKEND | **true** / false | true / **false** | **false** | **false** |
 | PROXY_WEBSOCKET | **false** | true / **false** | **false** | **false** |
 
