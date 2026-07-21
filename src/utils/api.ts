@@ -719,7 +719,8 @@ export async function fetchServer(uuid: string): Promise<CfServer> {
 }
 
 export function buildAdminUrl(apiIndex = 0): string {
-  const base = getApiBases()[apiIndex] ?? getApiBases()[0] ?? window.location.origin
+  const bases = getConfiguredApiBases()
+  const base = bases[apiIndex] ?? bases[0] ?? window.location.origin
   return `${base}/#/admin`
 }
 
