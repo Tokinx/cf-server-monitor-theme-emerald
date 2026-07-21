@@ -5,8 +5,7 @@ const MB = 1024 * 1024
 const LEADING_SLASHES_REGEX = /^\/+/
 const TRAILING_SLASHES_REGEX = /\/+$/
 const NON_PRICE_CHARACTERS_REGEX = /[^\d.-]/g
-const YEAR_SUFFIX_REGEX = /\/y(?:ear)?$/i
-const QUARTER_SUFFIX_REGEX = /\/q(?:uarter)?$/i
+const BILLING_CYCLE_SUFFIX_REGEX = /\/\s*(?:(\d+(?:\.\d+)?)\s*)?(d(?:ay)?s?|m(?:onth)?s?|q(?:uarter)?s?|y(?:ear)?s?)\s*$/i
 const WHITESPACE_REGEX = /\s+/
 
 export interface SiteConfig {
@@ -486,15 +485,32 @@ export function getCachedSiteConfigs(): SiteConfig[] {
 
 function parsePrice(value: unknown): { price: number, currency: string, billingCycle: number } {
   const text = String(value ?? '').trim()
-  const price = finiteNumber(text.replace(NON_PRICE_CHARACTERS_REGEX, ''))
+  // Only the part before the slash is the amount: "$60/3Y" must be 60, not 603.
+  const price = finiteNumber((text.split('/', 1)[0] ?? '').replace(NON_PRICE_CHARACTERS_REGEX, ''))
   const currency = text.includes('$') ? 'USD' : text.includes('€') ? 'EUR' : text.includes('£') ? 'GBP' : 'CNY'
   const lower = text.toLowerCase()
-  const billingCycle = lower.includes('year') || text.includes('/年') || YEAR_SUFFIX_REGEX.test(text)
-    ? 365
-    : lower.includes('quarter') || text.includes('/季') || QUARTER_SUFFIX_REGEX.test(text)
-      ? 90
-      : lower.includes('once') || text.includes('一次') ? -1 : 30
+  const cycleSuffix = text.match(BILLING_CYCLE_SUFFIX_REGEX)
+  const billingCycle = cycleSuffix
+    ? parseBillingCycleSuffix(cycleSuffix[1], cycleSuffix[2] ?? '')
+    : lower.includes('year') || text.includes('/年')
+      ? 365
+      : lower.includes('quarter') || text.includes('/季')
+        ? 90
+        : lower.includes('once') || text.includes('一次') ? -1 : 30
   return { price, currency, billingCycle }
+}
+
+function parseBillingCycleSuffix(countText: string | undefined, unit: string): number {
+  const count = Number(countText || 1)
+  const normalizedUnit = unit.toLowerCase()
+
+  if (normalizedUnit.startsWith('y'))
+    return count * 365
+  if (normalizedUnit.startsWith('q'))
+    return count * 90
+  if (normalizedUnit.startsWith('m'))
+    return count * 30
+  return count
 }
 
 function parseTrafficLimit(value: unknown): number {

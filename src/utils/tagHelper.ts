@@ -364,6 +364,14 @@ export function formatPrice(price: number, currency: string = '￥', lang: 'zh-C
 function getBillingCycleShortText(billingCycle: number): string {
   if (billingCycle === -1)
     return 'once'
+  if (billingCycle > 0 && billingCycle % 365 === 0) {
+    const years = billingCycle / 365
+    return years === 1 ? 'Y' : `${years}Y`
+  }
+  if (billingCycle > 0 && billingCycle % 30 === 0) {
+    const months = billingCycle / 30
+    return months === 1 ? 'M' : `${months}M`
+  }
   if (billingCycle >= 360)
     return 'Y'
   if (billingCycle >= 175)
