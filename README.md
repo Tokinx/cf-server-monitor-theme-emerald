@@ -21,7 +21,7 @@
 
 | 平台             | 一键部署                                                                                                                                                                                                                                          | PROXY_BACKEND    | PROXY_WEBSOCKET  |
 | ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------- | ---------------- |
-| GitHub Pages(推荐)     | 图文教程见下方折叠内容 | **不支持**       | **不支持**       |
+| GitHub Pages (推荐)     | [查看图文教程](#github-pages-%E9%83%A8%E7%BD%B2%E5%9B%BE%E6%96%87%E6%95%99%E7%A8%8B) | **不支持**       | **不支持**       |
 | Vercel           | [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/Tokinx/cf-server-monitor-theme-emerald)                                                                                         | **true** / false | **不支持**       |
 | Cloudflare       | [![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/Tokinx/cf-server-monitor-theme-emerald)                                                                     | **true** / false | true / **false** |
 | EdgeOne (Global) | [![使用 EdgeOne Makers 部署](https://cdnstatic.tencentcs.com/edgeone/pages/deploy.svg)](https://edgeone.ai/pages/new?repository-url=https://github.com/Tokinx/cf-server-monitor-theme-emerald&env=API_BASE,PROXY_BACKEND)                         | **true** / false | **不支持**       |
@@ -32,12 +32,13 @@
 - `PROXY_WEBSOCKET` 开启后 WebSocket 将通过代理转发到 `API_BASE`，可起到一定的加速作用（Vercel、EdgeOne 与 Github Pages 不支持）。
 - Cloudflare Workers / Pages 会在返回页面时读取运行时环境变量，无需在 Vite 构建阶段额外注入；在 Cloudflare 控制台修改变量并重新部署后即可生效。
 
+### Github Pages 部署图文教程
 <details>
-<summary>Github Pages部署图文教程</summary>
+<summary>展开图文教程</summary>
 
 ### 1. Fork 并开启github pages
 
-1. [Fork](https://github.com/huilang-me/cf-server-monitor-theme-emerald/fork) 本项目
+1. [Fork](https://github.com/Tokinx/cf-server-monitor-theme-emerald/fork) 本项目
 2. 在fork成功的项目里面，选择Settings → Pages →Build and deployment -> Source 下面下拉选择Github Actions，自动跳转后就可以了。
 3. 下方可以绑定域名，需要cname到 [你的github ID].github.io 。建议绑定域名，然后开启Cloudflare的CDN，不然国内可能无法访问。
 
