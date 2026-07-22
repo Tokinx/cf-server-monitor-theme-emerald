@@ -21,16 +21,66 @@
 
 | 平台             | 一键部署                                                                                                                                                                                                                                          | PROXY_BACKEND    | PROXY_WEBSOCKET  |
 | ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------- | ---------------- |
+| GitHub Pages(推荐)     | 图文教程见下方折叠内容 | **不支持**       | **不支持**       |
 | Vercel           | [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/Tokinx/cf-server-monitor-theme-emerald)                                                                                         | **true** / false | **不支持**       |
 | Cloudflare       | [![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/Tokinx/cf-server-monitor-theme-emerald)                                                                     | **true** / false | true / **false** |
 | EdgeOne (Global) | [![使用 EdgeOne Makers 部署](https://cdnstatic.tencentcs.com/edgeone/pages/deploy.svg)](https://edgeone.ai/pages/new?repository-url=https://github.com/Tokinx/cf-server-monitor-theme-emerald&env=API_BASE,PROXY_BACKEND)                         | **true** / false | **不支持**       |
 | EdgeOne (国内)   | [![使用 EdgeOne Makers 部署](https://cdnstatic.tencentcs.com/edgeone/pages/deploy.svg)](https://console.cloud.tencent.com/edgeone/makers/new?repository-url=https://github.com/Tokinx/cf-server-monitor-theme-emerald&env=API_BASE,PROXY_BACKEND) | **true** / false | **不支持**       |
-| GitHub Pages     |                                                                                                                                                                                                                                                   | **不支持**       | **不支持**       |
 
 - `API_BASE` 是 CF Server Monitor Worker 的地址，例如 `https://monitor.example.com`。
 - `PROXY_BACKEND` 开启后 `/api`、`/flags`、`/os-icons` 将通过代理转发到 `API_BASE`，可起到一定的加速作用
 - `PROXY_WEBSOCKET` 开启后 WebSocket 将通过代理转发到 `API_BASE`，可起到一定的加速作用（Vercel、EdgeOne 与 Github Pages 不支持）。
 - Cloudflare Workers / Pages 会在返回页面时读取运行时环境变量，无需在 Vite 构建阶段额外注入；在 Cloudflare 控制台修改变量并重新部署后即可生效。
+
+<details>
+<summary>Github Pages部署图文教程</summary>
+
+### 1. Fork 并开启github pages
+
+1. [Fork](https://github.com/huilang-me/cf-server-monitor-theme-emerald/fork) 本项目
+2. 在fork成功的项目里面，选择Settings → Pages →Build and deployment -> Source 下面下拉选择Github Actions，自动跳转后就可以了。
+3. 下方可以绑定域名，需要cname到 [你的github ID].github.io 。建议绑定域名，然后开启Cloudflare的CDN，不然国内可能无法访问。
+
+<img width="1093" height="583" alt="image" src="https://github.com/user-attachments/assets/6c6b3bf2-7f29-43b5-8558-a31eaf66c456" />
+
+### 2. 设置环境变量
+
+点击自己项目的Settings → Secrets and variables → Actions，右侧选*Variables*这个tab。
+<img width="1129" height="861" alt="image" src="https://github.com/user-attachments/assets/8f56b2c0-cf1e-4609-ab68-3fcd989aaba1" />
+
+
+点击New repository variables
+<img width="934" height="761" alt="image" src="https://github.com/user-attachments/assets/0411422e-9c9b-4080-a426-df9ddcc7696d" />
+
+Name填`API_BASE`，Value填你的探针地址，多个用逗号分开，注意不要以`/`结尾
+<img width="718" height="511" alt="image" src="https://github.com/user-attachments/assets/cdc77aaf-7370-43e4-b887-b2bd7618bf9c" />
+
+### 3. 开启Action
+
+打开自己gitub项目的Action选项，点击 I understand my workflows, go ahead and enable them
+<img width="4801" height="1818" alt="image" src="https://github.com/user-attachments/assets/3d5caca8-f05c-4416-822c-6590eaf2b178" />
+
+### 4. 运行Aciton
+
+点击左侧Actions的Deploy GitHub Pages ，然后右侧点 Run workflow,弹出的下拉中 点Run workflow。
+
+<img width="1696" height="522" alt="image" src="https://github.com/user-attachments/assets/fdba88f2-c651-4e66-93c0-3f59c026e9fc" />
+
+等待自动部署，这一步有时候较久（最近GitHub被AI搞太多，资源不太够，有时候需要排队很久），如果失败，点右上角Re-run jobs重试
+
+部署成功，访问`https://[你的github用户名].github.io/cf-server-monitor-theme-emerald/`，这时候因为跨域会访问失败
+
+### 5. 设置允许跨域白名单
+
+返回你的Workers探针项目，和添加API_SECRET的方式一样，添加CORS_ALLOWED_ORIGINS，值为上面的 你自己的前端域名，比如`https://[你的github用户名].github.io`(注意https开头，结尾没有/)。如需要允许被多个域名跨域使用，可以用英文逗号隔开。
+
+<img width="1946" height="678" alt="image" src="https://github.com/user-attachments/assets/2c00d871-6d1b-4ee8-b7dc-5853a87570b5" />
+
+### 6. CF盾（可选）
+
+如果要开启CF盾的话，将前端域名比如`https://[你的github用户名].github.io`，加到Turnstile白名单去。
+
+</details>
 
 ## 主题设置
 
