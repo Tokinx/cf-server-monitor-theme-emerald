@@ -2,10 +2,7 @@ name = "cf-server-monitor-theme-emerald"
 main = "cloudflare/worker.ts"
 compatibility_date = "2025-01-01"
 
-[vars]
-API_BASE = "https://monitor.example.com"
-PROXY_BACKEND = "true"
-PROXY_WEBSOCKET = "false"
+keep_vars = true
 
 [build]
 command = "bun run build:cloudflare"
