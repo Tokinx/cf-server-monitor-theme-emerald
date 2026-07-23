@@ -1,8 +1,8 @@
 import dayjs from 'dayjs'
-import { CURRENCY_SYMBOLS, isSupportedCurrency, normalizeCurrency } from '@/utils/financeHelper'
+import { CURRENCY_SYMBOLS, normalizeCurrency } from '@/utils/financeHelper'
 
 /** 计费周期类型 */
-export type BillingCycleType = 'monthly' | 'quarterly' | 'semi_annual' | 'annual' | 'biennial' | 'triennial' | 'quinquennial' | 'once' | 'custom'
+export type BillingCycleType = 'monthly' | 'quarterly' | 'semi_annual' | 'annual' | 'biennial' | 'triennial' | 'quadrennial' | 'quinquennial' | 'once' | 'custom'
 
 /** 过期状态类型 */
 export type ExpireStatus = 'expired' | 'critical' | 'warning' | 'normal' | 'long_term'
@@ -104,6 +104,7 @@ const BILLING_CYCLE_RANGES: Array<{ type: BillingCycleType, min: number, max: nu
   { type: 'annual', min: 360, max: 370 },
   { type: 'biennial', min: 720, max: 750 },
   { type: 'triennial', min: 1080, max: 1150 },
+  { type: 'quadrennial', min: 1440, max: 1500 },
   { type: 'quinquennial', min: 1800, max: 1850 },
 ]
 
@@ -117,7 +118,6 @@ const EXPIRE_THRESHOLDS = {
 const TAG_COLOR_SUFFIX_REGEX = /<(\w+)>$/
 const TAG_COLOR_SUFFIX_REMOVE_REGEX = /<\w+>$/
 const TAG_SEPARATOR_REGEX = /[,;]/
-const PRICE_CURRENCY_SYMBOLS: Readonly<Record<string, string>> = CURRENCY_SYMBOLS
 
 /**
  * 解析计费周期类型
@@ -153,6 +153,7 @@ export function getBillingCycleText(billingCycle: number, lang: 'zh-CN' | 'en-US
     annual: { 'zh-CN': '年', 'en-US': 'Year' },
     biennial: { 'zh-CN': '两年', 'en-US': 'Biennial' },
     triennial: { 'zh-CN': '三年', 'en-US': 'Triennial' },
+    quadrennial: { 'zh-CN': '四年', 'en-US': 'Quadrennial' },
     quinquennial: { 'zh-CN': '五年', 'en-US': 'Quinquennial' },
     once: { 'zh-CN': '一次性', 'en-US': 'Once' },
     custom: { 'zh-CN': `${billingCycle} 天`, 'en-US': `${billingCycle} Days` },
@@ -350,37 +351,40 @@ export function parseTags(tags: string | undefined): Array<{ text: string, color
  * @returns 价格显示文本
  */
 export function formatPrice(price: number, currency: string = '￥', lang: 'zh-CN' | 'en-US' = 'zh-CN'): string {
-  if (price === 0)
+  const numericPrice = Number(price)
+  if (numericPrice === 0 || numericPrice === -1 || !Number.isFinite(numericPrice))
     return lang === 'zh-CN' ? '免费' : 'Free'
-  if (price === -1)
-    return lang === 'zh-CN' ? '免费' : 'Free'
-  const normalizedCurrency = currency.trim().toUpperCase()
-  const symbol = isSupportedCurrency(normalizedCurrency)
-    ? PRICE_CURRENCY_SYMBOLS[normalizedCurrency]
-    : PRICE_CURRENCY_SYMBOLS[normalizeCurrency(currency)] ?? currency
-  return `${symbol}${price}`
+
+  const code = normalizeCurrency(currency)
+  const symbol = CURRENCY_SYMBOLS[code] ?? (currency || '¥')
+  return `${symbol}${numericPrice}`
 }
 
 function getBillingCycleShortText(billingCycle: number): string {
-  if (billingCycle === -1)
+  const days = Number(billingCycle)
+  if (days === -1 || days <= 0 || !Number.isFinite(days))
     return 'once'
-  if (billingCycle > 0 && billingCycle % 365 === 0) {
-    const years = billingCycle / 365
+  if (days === 90)
+    return 'Q'
+  if (days === 180)
+    return '6M'
+  if (days > 0 && days % 365 === 0) {
+    const years = days / 365
     return years === 1 ? 'Y' : `${years}Y`
   }
-  if (billingCycle > 0 && billingCycle % 30 === 0) {
-    const months = billingCycle / 30
+  if (days > 0 && days % 30 === 0) {
+    const months = days / 30
     return months === 1 ? 'M' : `${months}M`
   }
-  if (billingCycle >= 360)
+  if (days >= 360)
     return 'Y'
-  if (billingCycle >= 175)
+  if (days >= 175)
     return '6M'
-  if (billingCycle >= 87)
+  if (days >= 87)
     return 'Q'
-  if (billingCycle >= 27)
+  if (days >= 27)
     return 'M'
-  return `${billingCycle}D`
+  return `${days}D`
 }
 
 /**
@@ -399,7 +403,7 @@ export function formatPriceWithCycle(
 ): string {
   const priceText = formatPrice(price, currency, lang)
   const cycleText = getBillingCycleShortText(billingCycle)
-  return price > 0 ? `${priceText}/${cycleText}` : priceText
+  return Number(price) > 0 ? `${priceText}/${cycleText}` : priceText
 }
 
 /**

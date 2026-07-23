@@ -18,6 +18,7 @@ const FINANCE_CURRENCY_CONFIG = {
   ISK: { rate: 18.4626, symbol: 'kr' },
   JPY: { rate: 23.707, symbol: '¥' },
   KRW: { rate: 224.11, symbol: '₩' },
+  KZT: { rate: 64, symbol: '₸' },
   MXN: { rate: 2.5472, symbol: 'Mex$' },
   MYR: { rate: 0.59945, symbol: 'RM' },
   NOK: { rate: 1.4096, symbol: 'kr' },
@@ -25,11 +26,14 @@ const FINANCE_CURRENCY_CONFIG = {
   PHP: { rate: 8.9288, symbol: '₱' },
   PLN: { rate: 0.54138, symbol: 'zł' },
   RON: { rate: 0.66769, symbol: 'lei' },
+  RUB: { rate: 11.9, symbol: '₽' },
   SEK: { rate: 1.3895, symbol: 'kr' },
   SGD: { rate: 0.18975, symbol: 'S$' },
   THB: { rate: 4.8172, symbol: '฿' },
   TRY: { rate: 6.849, symbol: '₺' },
+  UAH: { rate: 3.6, symbol: '₴' },
   USD: { rate: 0.14799, symbol: '$' },
+  VND: { rate: 3500, symbol: '₫' },
   ZAR: { rate: 2.3995, symbol: 'R' },
 } as const
 
@@ -72,17 +76,48 @@ const EXCHANGE_RATE_APIS = [
 const EXPLICIT_CURRENCY_ALIASES: Record<string, CurrencyCode> = {
   '$': 'USD',
   'US$': 'USD',
+  'A$': 'AUD',
   'CA$': 'CAD',
   'CN¥': 'CNY',
-  'RMB': 'CNY',
+  'C$': 'CAD',
   'HK$': 'HKD',
+  'NZ$': 'NZD',
+  'RMB': 'CNY',
+  'Rp': 'IDR',
+  'R$': 'BRL',
+  'RM': 'MYR',
+  'S$': 'SGD',
   '€': 'EUR',
   '£': 'GBP',
+  '₩': 'KRW',
+  '₪': 'ILS',
+  '₽': 'RUB',
+  '₸': 'KZT',
+  '₴': 'UAH',
+  '₺': 'TRY',
+  '₣': 'CHF',
+  '₹': 'INR',
+  '₫': 'VND',
+  '฿': 'THB',
+  '₱': 'PHP',
+  'zł': 'PLN',
   '¥': 'CNY',
   '￥': 'CNY',
   'JP¥': 'JPY',
 }
 const CURRENCY_SYMBOL_ALIASES = createCurrencySymbolAliases()
+
+/** 完整的 symbol/alias → ISO code 映射（单一数据源） */
+export const normalizedCurrencyMap: Record<string, CurrencyCode> = Object.assign(
+  {},
+  EXPLICIT_CURRENCY_ALIASES,
+  CURRENCY_SYMBOL_ALIASES,
+) as Record<string, CurrencyCode>
+
+/** symbol → ISO code 完整映射（含共享符号，供 detectLegacyCurrency 使用） */
+export const CURRENCY_SYMBOL_TO_CODE = Object.fromEntries(
+  Object.entries(FINANCE_CURRENCY_CONFIG).map(([code, config]) => [config.symbol, code]),
+) as Record<string, CurrencyCode>
 
 export function normalizeCurrency(currency: string | null | undefined): CurrencyCode {
   const value = String(currency || 'CNY').trim().toUpperCase()
@@ -284,6 +319,9 @@ export async function getDailyExchangeRates(): Promise<{
 }
 
 function getPriceCNY(node: NodeData, exchangeRates: ExchangeRates): number {
+  if (node.price_configured === false)
+    return 0
+
   const price = Number(node.price)
   if (!Number.isFinite(price) || price <= 0)
     return 0
@@ -292,7 +330,8 @@ function getPriceCNY(node: NodeData, exchangeRates: ExchangeRates): number {
   if (currency === 'CNY')
     return price
 
-  return price / exchangeRates[currency]
+  const rate = exchangeRates[currency] || DEFAULT_EXCHANGE_RATES[currency]
+  return rate > 0 ? price / rate : 0
 }
 
 async function fetchExchangeRates(): Promise<ExchangeRates | null> {
@@ -370,10 +409,9 @@ function sanitizeExchangeRates(rates: unknown): ExchangeRates | null {
       continue
 
     const value = Number(record[currency])
-    if (!Number.isFinite(value) || value <= 0)
-      return null
-
-    result[currency] = value
+    result[currency] = Number.isFinite(value) && value > 0
+      ? value
+      : DEFAULT_EXCHANGE_RATES[currency]
   }
 
   return result

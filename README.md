@@ -19,13 +19,13 @@
 
 ## 一键部署
 
-| 平台             | 一键部署                                                                                                                                                                                                                                          | PROXY_BACKEND    | PROXY_WEBSOCKET  |
-| ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------- | ---------------- |
-| GitHub Pages (推荐)     | [查看图文教程](#github-pages-%E9%83%A8%E7%BD%B2%E5%9B%BE%E6%96%87%E6%95%99%E7%A8%8B) | **不支持**       | **不支持**       |
-| Vercel           | [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/Tokinx/cf-server-monitor-theme-emerald)                                                                                         | **true** / false | **不支持**       |
-| Cloudflare       | [![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/Tokinx/cf-server-monitor-theme-emerald)                                                                     | **true** / false | true / **false** |
-| EdgeOne (Global) | [![使用 EdgeOne Makers 部署](https://cdnstatic.tencentcs.com/edgeone/pages/deploy.svg)](https://edgeone.ai/pages/new?repository-url=https://github.com/Tokinx/cf-server-monitor-theme-emerald&env=API_BASE,PROXY_BACKEND)                         | **true** / false | **不支持**       |
-| EdgeOne (国内)   | [![使用 EdgeOne Makers 部署](https://cdnstatic.tencentcs.com/edgeone/pages/deploy.svg)](https://console.cloud.tencent.com/edgeone/makers/new?repository-url=https://github.com/Tokinx/cf-server-monitor-theme-emerald&env=API_BASE,PROXY_BACKEND) | **true** / false | **不支持**       |
+| 平台                | 一键部署                                                                                                                                                                                                                                          | PROXY_BACKEND    | PROXY_WEBSOCKET  |
+| ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------- | ---------------- |
+| GitHub Pages (推荐) | [查看图文教程](#github-pages-%E9%83%A8%E7%BD%B2%E5%9B%BE%E6%96%87%E6%95%99%E7%A8%8B)                                                                                                                                                              | **不支持**       | **不支持**       |
+| Vercel              | [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/Tokinx/cf-server-monitor-theme-emerald)                                                                                         | **true** / false | **不支持**       |
+| Cloudflare          | [![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/Tokinx/cf-server-monitor-theme-emerald)                                                                     | **true** / false | true / **false** |
+| EdgeOne (Global)    | [![使用 EdgeOne Makers 部署](https://cdnstatic.tencentcs.com/edgeone/pages/deploy.svg)](https://edgeone.ai/pages/new?repository-url=https://github.com/Tokinx/cf-server-monitor-theme-emerald&env=API_BASE,PROXY_BACKEND)                         | **true** / false | **不支持**       |
+| EdgeOne (国内)      | [![使用 EdgeOne Makers 部署](https://cdnstatic.tencentcs.com/edgeone/pages/deploy.svg)](https://console.cloud.tencent.com/edgeone/makers/new?repository-url=https://github.com/Tokinx/cf-server-monitor-theme-emerald&env=API_BASE,PROXY_BACKEND) | **true** / false | **不支持**       |
 
 - `API_BASE` 是 CF Server Monitor Worker 的地址，例如 `https://monitor.example.com`。
 - `PROXY_BACKEND` 开启后 `/api`、`/flags`、`/os-icons` 将通过代理转发到 `API_BASE`，可起到一定的加速作用
@@ -33,6 +33,7 @@
 - Cloudflare Workers / Pages 会在返回页面时读取运行时环境变量，无需在 Vite 构建阶段额外注入；在 Cloudflare 控制台修改变量并重新部署后即可生效。
 
 ### Github Pages 部署图文教程
+
 <details>
 <summary>展开图文教程</summary>
 
@@ -48,7 +49,6 @@
 
 点击自己项目的Settings → Secrets and variables → Actions，右侧选*Variables*这个tab。
 <img width="1129" height="861" alt="image" src="https://github.com/user-attachments/assets/8f56b2c0-cf1e-4609-ab68-3fcd989aaba1" />
-
 
 点击New repository variables
 <img width="934" height="761" alt="image" src="https://github.com/user-attachments/assets/0411422e-9c9b-4080-a426-df9ddcc7696d" />

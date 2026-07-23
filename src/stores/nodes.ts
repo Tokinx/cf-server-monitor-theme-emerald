@@ -37,6 +37,7 @@ export interface NodeData {
   version?: string
   weight: number
   price: number
+  price_configured?: boolean
   billing_cycle: number
   auto_renewal: boolean
   currency: string
@@ -168,6 +169,7 @@ const useNodesStore = defineStore('nodes', () => {
       version: client.version,
       weight: client.weight,
       price: client.price,
+      price_configured: client.price_configured,
       billing_cycle: client.billing_cycle,
       auto_renewal: client.auto_renewal,
       currency: client.currency,

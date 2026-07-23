@@ -10,9 +10,9 @@ import { useBackgroundSurface } from '@/composables/useBackgroundSurface'
 import { useAppStore } from '@/stores/app'
 import { getApiAssetUrl } from '@/utils/api'
 import { formatBytesPerSecondWithConfig, formatBytesWithConfig, formatDateTime, formatUptimeWithFormat, getStatus } from '@/utils/helper'
+import { formatOfflineTime, getCustomTags, getPingToneClass, getPriceTags, getRemainingTimeTagClass, getTrafficUsed, getTrafficUsedPercentage, hasRegion, PING_PROVIDERS, showTrafficProgress } from '@/utils/nodeHelper'
 import { getOSImage, getOSName } from '@/utils/osImageHelper'
 import { getRegionCode, getRegionDisplayName } from '@/utils/regionHelper'
-import { formatPriceWithCycle, formatRemainingDays, getExpireStatus, getExpireTextClass, parseTags } from '@/utils/tagHelper'
 
 const props = defineProps<{ node: NodeData }>()
 
@@ -27,7 +27,7 @@ const { pickSurfaceClass } = useBackgroundSurface()
 const formatBytes = (bytes: number) => formatBytesWithConfig(bytes, appStore.byteDecimals)
 const formatBytesPerSecond = (bytes: number) => formatBytesPerSecondWithConfig(bytes, appStore.byteDecimals)
 const formatUptime = (seconds: number) => formatUptimeWithFormat(seconds, 'hour')
-const offlineTime = computed(() => formatDateTime(props.node.time))
+const offlineTime = computed(() => formatOfflineTime(props.node))
 const expiredDate = computed(() => formatDateTime(props.node.expired_at, 'YYYY-MM-DD'))
 
 const cpuStatus = computed(() => getStatus(props.node.cpu ?? 0))
@@ -35,13 +35,6 @@ const memPercentage = computed(() => (props.node.ram ?? 0) / (props.node.mem_tot
 const memStatus = computed(() => getStatus(memPercentage.value))
 const diskPercentage = computed(() => (props.node.disk ?? 0) / (props.node.disk_total || 1) * 100)
 const diskStatus = computed(() => getStatus(diskPercentage.value))
-
-const PING_PROVIDERS = [
-  { key: 'ct', label: 'CT' },
-  { key: 'cu', label: 'CU' },
-  { key: 'cm', label: 'CM' },
-  { key: 'bd', label: 'BD' },
-] as const
 
 const realtimePings = computed(() => PING_PROVIDERS.map((provider) => {
   const ping = props.node.ping?.[provider.key]
@@ -60,90 +53,11 @@ const realtimePings = computed(() => PING_PROVIDERS.map((provider) => {
   }
 }))
 
-function getPingToneClass(latency: number, available: boolean): string {
-  if (!available)
-    return 'text-muted-foreground'
-  if (latency <= 100)
-    return 'text-emerald-600 dark:text-emerald-400'
-  if (latency <= 180)
-    return 'text-lime-600 dark:text-lime-400'
-  if (latency <= 260)
-    return 'text-amber-600 dark:text-amber-400'
-  return 'text-rose-600 dark:text-rose-400'
-}
-
-function showTrafficProgress(node: NodeData): boolean {
-  return node.traffic_limit > 0
-}
-
-const trafficUsedPercentage = computed(() => {
-  if (props.node.traffic_limit <= 0)
-    return 0
-  const { net_monthly_up = 0, net_monthly_down = 0, traffic_limit_type } = props.node
-  let used = 0
-  switch (traffic_limit_type) {
-    case 'up': used = net_monthly_up
-      break
-    case 'down': used = net_monthly_down
-      break
-    case 'min': used = Math.min(net_monthly_up, net_monthly_down)
-      break
-    case 'max': used = Math.max(net_monthly_up, net_monthly_down)
-      break
-    case 'sum':
-    default:
-      used = net_monthly_up + net_monthly_down
-      break
-  }
-  return Math.min((used / props.node.traffic_limit) * 100, 100)
-})
-
-const trafficUsed = computed(() => {
-  const { net_monthly_up = 0, net_monthly_down = 0, traffic_limit_type } = props.node
-  switch (traffic_limit_type) {
-    case 'up': return net_monthly_up
-    case 'down': return net_monthly_down
-    case 'min': return Math.min(net_monthly_up, net_monthly_down)
-    case 'max': return Math.max(net_monthly_up, net_monthly_down)
-    case 'sum':
-    default: return net_monthly_up + net_monthly_down
-  }
-})
-
-interface PriceTagItem {
-  text: string
-  highlightValue?: string
-  prefix?: string
-  suffix?: string
-}
-
-const priceTags = computed<PriceTagItem[]>(() => {
-  const tags: PriceTagItem[] = []
-  const lang = appStore.lang
-  const node = props.node
-  const status = getExpireStatus(node.expired_at)
-  const remainingDays = formatRemainingDays(node.expired_at)
-  const priceText = formatPriceWithCycle(node.price, node.billing_cycle, node.currency, lang)
-  if (node.price !== 0)
-    tags.push({ text: priceText })
-  if (status === 'long_term')
-    tags.push({ text: lang === 'zh-CN' ? '长期' : 'Long-term' })
-  else
-    tags.push({ text: remainingDays, highlightValue: remainingDays })
-  return tags
-})
-
-const remainingTimeTagClass = computed(() => {
-  if (props.node.price === 0)
-    return ''
-  return getExpireTextClass(props.node.expired_at)
-})
-
-const customTags = computed(() => parseTags(props.node.tags).map(t => t.text))
-
-function hasRegion(region: string | null | undefined): boolean {
-  return Boolean(region?.trim())
-}
+const trafficUsedPercentage = computed(() => getTrafficUsedPercentage(props.node))
+const trafficUsed = computed(() => getTrafficUsed(props.node))
+const priceTags = computed(() => getPriceTags(props.node, appStore.lang))
+const remainingTimeTagClass = computed(() => getRemainingTimeTagClass(props.node))
+const customTags = computed(() => getCustomTags(props.node))
 
 function openPingDialog() {
   emit('pingClick', props.node)

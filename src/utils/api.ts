@@ -1,12 +1,89 @@
+import type { CurrencyCode } from '@/utils/financeHelper'
 import type { Client, NodeStatus, NodeStatusPing, PingRecord, StatusRecord } from '@/utils/rpc'
+import { isSupportedCurrency, normalizedCurrencyMap } from '@/utils/financeHelper'
 
 const ONLINE_THRESHOLD_MS = 5 * 60 * 1000
 const MB = 1024 * 1024
 const LEADING_SLASHES_REGEX = /^\/+/
 const TRAILING_SLASHES_REGEX = /\/+$/
-const NON_PRICE_CHARACTERS_REGEX = /[^\d.-]/g
+const PRICE_NUMBER_REGEX = /-?[\d.,]+/
 const BILLING_CYCLE_SUFFIX_REGEX = /\/\s*(?:(\d+(?:\.\d+)?)\s*)?(d(?:ay)?s?|m(?:onth)?s?|q(?:uarter)?s?|y(?:ear)?s?)\s*$/i
+const FREE_PRICE_REGEX = /^(?:free|免费)$/i
+const ONCE_BILLING_REGEX = /^(?:once|one[-_\s]?time|一次性?)$/i
+const COMPACT_BILLING_REGEX = /(?:^|\/)\s*(?:(\d+(?:\.\d+)?)\s*)?([dmqy]|day|days|mo|month|months|quarter|quarters|yr|year|years)\s*$/i
+const FIVE_YEAR_REGEX = /五年|5\s*(?:years?|yrs?|y)/i
+const FOUR_YEAR_REGEX = /四年|4\s*(?:years?|yrs?|y)/i
+const THREE_YEAR_REGEX = /三年|3\s*(?:years?|yrs?|y)/i
+const TWO_YEAR_REGEX = /两年|二年|2\s*(?:years?|yrs?|y)/i
+const HALF_YEAR_REGEX = /半年|half[-_\s]?year/i
+const QUARTER_REGEX = /季|quarter/i
+const YEAR_REGEX = /年|annual|year|yr\b/i
+const MONTH_REGEX = /月|monthly|month|mo\b/i
+const NUMERIC_BILLING_REGEX = /^-?(?:\d+(?:[.,]\d+)?|[.,]\d+)$/
 const WHITESPACE_REGEX = /\s+/
+
+/**
+ * `/api/servers` has used two billing contracts over its lifetime:
+ *
+ * - legacy versions put the amount, currency and cycle in one free-form
+ *   `price` string (for example `￥30/月` or `$60/3Y`);
+ * - current versions expose a normalized amount plus `billing_cycle` and
+ *   `currency` fields.
+ *
+ * The UI keeps a day-based cycle internally, so the current enum values are
+ * mapped here once at the HTTP adaptation boundary.
+ */
+const BILLING_CYCLE_DAYS = {
+  month: 30,
+  quarter: 90,
+  half_year: 180,
+  year: 365,
+  two_years: 730,
+  three_years: 1095,
+  four_years: 1460,
+  five_years: 1825,
+} as const
+
+type BillingCycleKey = keyof typeof BILLING_CYCLE_DAYS
+
+const BILLING_CYCLE_ALIASES: Record<string, BillingCycleKey> = {
+  '月': 'month',
+  'monthly': 'month',
+  'month': 'month',
+  'mo': 'month',
+  '季': 'quarter',
+  '季度': 'quarter',
+  'quarterly': 'quarter',
+  'quarter': 'quarter',
+  '半年': 'half_year',
+  'halfyear': 'half_year',
+  'half_year': 'half_year',
+  'half-year': 'half_year',
+  'halfyearly': 'half_year',
+  'half-yearly': 'half_year',
+  '年': 'year',
+  '一年': 'year',
+  'annual': 'year',
+  'yearly': 'year',
+  'year': 'year',
+  '两年': 'two_years',
+  '二年': 'two_years',
+  'two_years': 'two_years',
+  'two-years': 'two_years',
+  '2 years': 'two_years',
+  '三年': 'three_years',
+  'three_years': 'three_years',
+  'three-years': 'three_years',
+  '3 years': 'three_years',
+  '四年': 'four_years',
+  'four_years': 'four_years',
+  'four-years': 'four_years',
+  '4 years': 'four_years',
+  '五年': 'five_years',
+  'five_years': 'five_years',
+  'five-years': 'five_years',
+  '5 years': 'five_years',
+}
 
 export interface SiteConfig {
   version: string
@@ -37,8 +114,12 @@ export interface CfServer {
   name?: string
   server_group?: string
   tags?: string
-  price?: string
-  expire_date?: string
+  price?: string | number | null
+  billing_cycle?: string | number | null
+  auto_renewal?: boolean | string | number | null
+  currency?: string | null
+  expire_date?: string | null
+  expired_at?: string | null
   traffic_limit?: string | number
   traffic_calc_type?: string
   reset_day?: number
@@ -186,7 +267,7 @@ const sourceRegistry = new Map<string, ServerSource>()
 let cachedSiteConfigs: SiteConfig[] = []
 
 function enabled(value: unknown): boolean {
-  return value === true || value === 'true'
+  return value === true || value === 1 || value === '1' || value === 'true'
 }
 
 const DEFAULT_THEME_SETTINGS: ThemeSettings = {
@@ -483,21 +564,32 @@ export function getCachedSiteConfigs(): SiteConfig[] {
   return cachedSiteConfigs
 }
 
-function parsePrice(value: unknown): { price: number, currency: string, billingCycle: number } {
+export interface AdaptedServerBilling {
+  price: number
+  priceConfigured: boolean
+  billingCycle: number
+  currency: string
+  autoRenewal: boolean
+}
+
+function parsePriceAmount(value: unknown): { price: number, configured: boolean } {
   const text = String(value ?? '').trim()
+  if (!text)
+    return { price: 0, configured: false }
+
+  if (FREE_PRICE_REGEX.test(text))
+    return { price: -1, configured: true }
+
   // Only the part before the slash is the amount: "$60/3Y" must be 60, not 603.
-  const price = finiteNumber((text.split('/', 1)[0] ?? '').replace(NON_PRICE_CHARACTERS_REGEX, ''))
-  const currency = text.includes('$') ? 'USD' : text.includes('€') ? 'EUR' : text.includes('£') ? 'GBP' : 'CNY'
-  const lower = text.toLowerCase()
-  const cycleSuffix = text.match(BILLING_CYCLE_SUFFIX_REGEX)
-  const billingCycle = cycleSuffix
-    ? parseBillingCycleSuffix(cycleSuffix[1], cycleSuffix[2] ?? '')
-    : lower.includes('year') || text.includes('/年')
-      ? 365
-      : lower.includes('quarter') || text.includes('/季')
-        ? 90
-        : lower.includes('once') || text.includes('一次') ? -1 : 30
-  return { price, currency, billingCycle }
+  const amountText = text.split('/', 1)[0]?.match(PRICE_NUMBER_REGEX)?.[0]
+  if (!amountText)
+    return { price: 0, configured: false }
+
+  const price = Number.parseFloat(amountText.replaceAll(',', ''))
+  if (!Number.isFinite(price) || (price < 0 && price !== -1))
+    return { price: 0, configured: false }
+
+  return { price, configured: true }
 }
 
 function parseBillingCycleSuffix(countText: string | undefined, unit: string): number {
@@ -511,6 +603,127 @@ function parseBillingCycleSuffix(countText: string | undefined, unit: string): n
   if (normalizedUnit.startsWith('m'))
     return count * 30
   return count
+}
+
+function parseBillingCycle(value: unknown): number | null {
+  if (value === undefined || value === null || value === '')
+    return null
+
+  if (typeof value === 'number')
+    return Number.isFinite(value) ? value : null
+
+  const text = String(value).trim()
+  if (!text)
+    return null
+
+  const numericCycle = Number(text)
+  if (Number.isFinite(numericCycle))
+    return numericCycle
+
+  const normalized = text.toLowerCase().replaceAll(' ', '_')
+  const aliasedCycle = BILLING_CYCLE_ALIASES[normalized] ?? BILLING_CYCLE_ALIASES[text.toLowerCase()]
+  if (aliasedCycle)
+    return BILLING_CYCLE_DAYS[aliasedCycle]
+
+  if (ONCE_BILLING_REGEX.test(text))
+    return -1
+
+  const cycleSuffix = text.match(BILLING_CYCLE_SUFFIX_REGEX)
+  if (cycleSuffix)
+    return parseBillingCycleSuffix(cycleSuffix[1], cycleSuffix[2] ?? '')
+
+  const compactCycle = text.match(COMPACT_BILLING_REGEX)
+  if (compactCycle)
+    return parseBillingCycleSuffix(compactCycle[1], compactCycle[2] ?? '')
+
+  if (FIVE_YEAR_REGEX.test(text))
+    return BILLING_CYCLE_DAYS.five_years
+  if (FOUR_YEAR_REGEX.test(text))
+    return BILLING_CYCLE_DAYS.four_years
+  if (THREE_YEAR_REGEX.test(text))
+    return BILLING_CYCLE_DAYS.three_years
+  if (TWO_YEAR_REGEX.test(text))
+    return BILLING_CYCLE_DAYS.two_years
+  if (HALF_YEAR_REGEX.test(text))
+    return BILLING_CYCLE_DAYS.half_year
+  if (QUARTER_REGEX.test(text))
+    return BILLING_CYCLE_DAYS.quarter
+  if (YEAR_REGEX.test(text))
+    return BILLING_CYCLE_DAYS.year
+  if (MONTH_REGEX.test(text))
+    return BILLING_CYCLE_DAYS.month
+
+  return null
+}
+
+function normalizeCurrencyField(value: unknown): string | null {
+  const raw = String(value ?? '').trim()
+  if (!raw)
+    return null
+
+  return normalizedCurrencyMap[raw]
+    ?? normalizedCurrencyMap[raw.toUpperCase()]
+    ?? (isSupportedCurrency(raw) ? raw : null)
+}
+
+const ISO_CURRENCY_CODE_REGEX = /^[A-Z]{3}$/i
+
+/** symbol → ISO code（排除 ISO 代码键，按长度降序匹配） */
+const REVERSE_SYMBOL_MAP: Record<string, CurrencyCode> = Object.fromEntries(
+  Object.entries(normalizedCurrencyMap)
+    .filter(([k]) => !ISO_CURRENCY_CODE_REGEX.test(k))
+    .map(([symbol, code]) => [symbol, code]),
+)
+const SORTED_SYMBOL_KEYS = Object.keys(REVERSE_SYMBOL_MAP).sort((a, b) => b.length - a.length)
+
+function detectLegacyCurrency(value: unknown): string {
+  const text = String(value ?? '')
+  if (!text)
+    return 'CNY'
+
+  const upper = text.toUpperCase()
+
+  // 按长度降序匹配符号，确保 "HK$" 优先于 "$"
+  for (const symbol of SORTED_SYMBOL_KEYS) {
+    if (text.includes(symbol) || (symbol.length > 1 && upper.includes(symbol.toUpperCase())))
+      return REVERSE_SYMBOL_MAP[symbol]!
+  }
+
+  // 尝试 ISO 代码匹配
+  for (const [key, code] of Object.entries(normalizedCurrencyMap)) {
+    if (ISO_CURRENCY_CODE_REGEX.test(key) && upper.includes(key))
+      return code
+  }
+
+  return 'CNY'
+}
+
+function parseLegacyBillingCycle(value: unknown): number | null {
+  const text = String(value ?? '').trim()
+  if (!text)
+    return null
+
+  // A current API amount such as "30.00" is not itself a billing cycle.
+  if (NUMERIC_BILLING_REGEX.test(text))
+    return null
+
+  return parseBillingCycle(text)
+}
+
+/** Normalizes both current and legacy CF Server Monitor billing fields. */
+export function adaptServerBilling(server: Pick<CfServer, 'price' | 'billing_cycle' | 'currency' | 'auto_renewal'>): AdaptedServerBilling {
+  const parsedPrice = parsePriceAmount(server.price)
+  const legacyBillingCycle = parseLegacyBillingCycle(server.price) ?? BILLING_CYCLE_DAYS.month
+  const explicitBillingCycle = parseBillingCycle(server.billing_cycle)
+  const explicitCurrency = normalizeCurrencyField(server.currency)
+
+  return {
+    price: parsedPrice.price,
+    priceConfigured: parsedPrice.configured,
+    billingCycle: explicitBillingCycle ?? legacyBillingCycle,
+    currency: explicitCurrency ?? detectLegacyCurrency(server.price),
+    autoRenewal: enabled(server.auto_renewal),
+  }
 }
 
 function parseTrafficLimit(value: unknown): number {
@@ -550,7 +763,7 @@ export function adaptServer(server: CfServer, apiIndex: number): AdaptedServer {
   const baseUrl = getApiBases()[apiIndex] ?? ''
   sourceRegistry.set(uuid, { apiIndex, baseUrl, serverId: server.id })
 
-  const price = parsePrice(server.price)
+  const billing = adaptServerBilling(server)
   const updatedAt = timestamp(wire.report_timestamp ?? server.last_updated ?? server.timestamp, 0)
   const load = String(server.load_avg ?? '').split(WHITESPACE_REGEX).map(finiteNumber)
   const now = Date.now()
@@ -585,11 +798,12 @@ export function adaptServer(server: CfServer, apiIndex: number): AdaptedServer {
       disk_total: finiteNumber(server.disk_total) * MB,
       version: server.agent_version,
       weight: finiteNumber(server.sort_order),
-      price: price.price,
-      billing_cycle: price.billingCycle,
-      auto_renewal: false,
-      currency: price.currency,
-      expired_at: server.expire_date || '9999-12-31',
+      price: billing.price,
+      price_configured: billing.priceConfigured,
+      billing_cycle: billing.billingCycle,
+      auto_renewal: billing.autoRenewal,
+      currency: billing.currency,
+      expired_at: server.expire_date || server.expired_at || '9999-12-31',
       group: server.server_group || '默认分组',
       tags: server.tags || '',
       hidden: false,

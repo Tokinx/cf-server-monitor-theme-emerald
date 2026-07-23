@@ -23,6 +23,8 @@ export interface Client {
   version?: string
   weight: number
   price: number
+  /** Whether the backend supplied a price. False distinguishes an unset value from a free (0/-1) plan. */
+  price_configured?: boolean
   billing_cycle: number
   auto_renewal: boolean
   currency: string

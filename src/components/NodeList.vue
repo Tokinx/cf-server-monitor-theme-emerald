@@ -10,23 +10,16 @@ import { ProgressThin } from '@/components/ui/progress-thin'
 import { useBackgroundSurface } from '@/composables/useBackgroundSurface'
 import { useAppStore } from '@/stores/app'
 import { getApiAssetUrl } from '@/utils/api'
-import { formatBytesPerSecondWithConfig, formatBytesWithConfig, formatDateTime, formatUptimeWithFormat, getStatus } from '@/utils/helper'
+import { formatBytesPerSecondWithConfig, formatBytesWithConfig, formatUptimeWithFormat, getStatus } from '@/utils/helper'
+import { formatOfflineTime, getCustomTags, getPriceTags, getRemainingTimeTagClass, getTrafficUsed, getTrafficUsedPercentage, hasRegion, showTrafficProgress } from '@/utils/nodeHelper'
 import { getOSImage, getOSName } from '@/utils/osImageHelper'
 import { getRegionCode, getRegionDisplayName } from '@/utils/regionHelper'
-import { formatPriceWithCycle, formatRemainingDays, getExpireStatus, getExpireTextClass, parseTags } from '@/utils/tagHelper'
 
 interface ColumnConfig {
   key: string
   label: string
   width: string | number
   sortable: boolean
-}
-
-interface PriceTagItem {
-  text: string
-  highlightValue?: string
-  prefix?: string
-  suffix?: string
 }
 
 const props = defineProps<{
@@ -134,10 +127,6 @@ function getFlagSrc(region: string, apiIndex?: number): string {
   return getApiAssetUrl(`flags/${getRegionCode(region).toLowerCase()}.svg`, apiIndex)
 }
 
-function hasRegion(region: string | null | undefined): boolean {
-  return Boolean(region?.trim())
-}
-
 function handleClick(node: NodeData) {
   emit('click', node)
 }
@@ -154,73 +143,6 @@ function getRowTransitionStyle(index: number): Record<string, string> {
   return {
     '--node-row-delay': `${Math.min(index, rowStaggerLimit) * rowStaggerMs}ms`,
   }
-}
-
-function showTrafficProgress(node: NodeData): boolean {
-  return node.traffic_limit > 0
-}
-
-function getTrafficUsedPercentage(node: NodeData): number {
-  if (node.traffic_limit <= 0)
-    return 0
-  const { net_monthly_up = 0, net_monthly_down = 0, traffic_limit_type } = node
-  let used = 0
-  switch (traffic_limit_type) {
-    case 'up': used = net_monthly_up
-      break
-    case 'down': used = net_monthly_down
-      break
-    case 'min': used = Math.min(net_monthly_up, net_monthly_down)
-      break
-    case 'max': used = Math.max(net_monthly_up, net_monthly_down)
-      break
-    case 'sum':
-    default:
-      used = net_monthly_up + net_monthly_down
-      break
-  }
-  return Math.min((used / node.traffic_limit) * 100, 100)
-}
-
-function getTrafficUsed(node: NodeData): number {
-  const { net_monthly_up = 0, net_monthly_down = 0, traffic_limit_type } = node
-  switch (traffic_limit_type) {
-    case 'up': return net_monthly_up
-    case 'down': return net_monthly_down
-    case 'min': return Math.min(net_monthly_up, net_monthly_down)
-    case 'max': return Math.max(net_monthly_up, net_monthly_down)
-    case 'sum':
-    default: return net_monthly_up + net_monthly_down
-  }
-}
-
-function formatOfflineTime(node: NodeData): string {
-  return formatDateTime(node.time)
-}
-
-function getPriceTags(node: NodeData): PriceTagItem[] {
-  const tags: PriceTagItem[] = []
-  const lang = appStore.lang
-  const status = getExpireStatus(node.expired_at)
-  const remainingDays = formatRemainingDays(node.expired_at)
-  const priceText = formatPriceWithCycle(node.price, node.billing_cycle, node.currency, lang)
-  if (node.price !== 0)
-    tags.push({ text: priceText })
-  if (status === 'long_term')
-    tags.push({ text: lang === 'zh-CN' ? '长期' : 'Long-term' })
-  else
-    tags.push({ text: remainingDays, highlightValue: remainingDays })
-  return tags
-}
-
-function getRemainingTimeTagClass(node: NodeData): string {
-  if (node.price === 0)
-    return ''
-  return getExpireTextClass(node.expired_at)
-}
-
-function getCustomTags(node: NodeData): Array<string> {
-  return parseTags(node.tags).map(t => t.text)
 }
 </script>
 
@@ -282,8 +204,8 @@ function getCustomTags(node: NodeData): Array<string> {
                 </div>
                 <div v-if="node.uptime" class="text-[11px] text-muted-foreground/70 truncate">
                   {{ formatUptime(node.uptime ?? 0) }}
-                  <template v-if="getPriceTags(node).length > 0">
-                    <span v-for="(tag, tagIndex) in getPriceTags(node)" :key="tagIndex" class="ml-1">
+                  <template v-if="getPriceTags(node, appStore.lang).length > 0">
+                    <span v-for="(tag, tagIndex) in getPriceTags(node, appStore.lang)" :key="tagIndex" class="ml-1">
                       <template v-if="tag.highlightValue">
                         <span>{{ tag.prefix }}</span>
                         <span :class="getRemainingTimeTagClass(node)">{{ tag.highlightValue }}</span>

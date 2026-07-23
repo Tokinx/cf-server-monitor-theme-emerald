@@ -13,6 +13,7 @@ import { useNodesStore } from '@/stores/nodes'
 import { getApiAssetUrl } from '@/utils/api'
 import * as financeHelper from '@/utils/financeHelper'
 import { formatBytesPerSecondWithConfig, formatBytesWithConfig, formatDateTime, formatUptimeWithFormat } from '@/utils/helper'
+import { getTrafficUsed, getTrafficUsedPercentage, showTrafficProgress } from '@/utils/nodeHelper'
 import { getOSImage, getOSName } from '@/utils/osImageHelper'
 import { getRegionCode, getRegionDisplayName } from '@/utils/regionHelper'
 import { getBillingCycleText, getExpireText, getExpireTextClass } from '@/utils/tagHelper'
@@ -97,17 +98,22 @@ function splitMetricValue(value: string): { value: string, unit?: string } {
 const nodePriceText = computed(() => {
   if (!data.value)
     return '-'
+  if (data.value.price_configured === false)
+    return '-'
+  if (Number(data.value.price) <= 0)
+    return appStore.lang === 'zh-CN' ? '免费' : 'Free'
 
   const priceCNY = financeHelper.calculateValueCNY(data.value, exchangeRates.value)
-  if (priceCNY <= 0)
-    return formatFinanceMetricValue(0, financeBaseCurrency.value)
-
   return `${formatFinanceMetricValue(priceCNY, financeBaseCurrency.value)} / ${getBillingCycleText(data.value.billing_cycle, appStore.lang)}`
 })
 
 const monthlyAverageCostText = computed(() => {
   if (!data.value)
     return '-'
+  if (data.value.price_configured === false)
+    return appStore.lang === 'zh-CN' ? '不适用' : 'N/A'
+  if (Number(data.value.price) <= 0)
+    return appStore.lang === 'zh-CN' ? '免费' : 'Free'
 
   if (Number(data.value.billing_cycle) <= 0)
     return appStore.lang === 'zh-CN' ? '不适用' : 'N/A'
@@ -125,6 +131,8 @@ const remainingTimeText = computed(() => {
 
 const remainingValueText = computed(() => {
   if (!data.value)
+    return '-'
+  if (data.value.price_configured === false)
     return '-'
 
   const remainingValueCNY = financeHelper.calculateRemainingValueCNY(data.value, exchangeRates.value)
@@ -196,36 +204,9 @@ const storageInfo = computed<InfoItem[]>(() => [
   { label: '硬盘', value: formatBytes(data.value?.disk_total ?? 0), icon: 'icon-park-outline:hard-disk' },
 ])
 
-const trafficUsed = computed(() => {
-  const node = data.value
-  if (!node)
-    return 0
-
-  const { net_monthly_up = 0, net_monthly_down = 0, traffic_limit_type } = node
-  switch (traffic_limit_type) {
-    case 'up':
-      return net_monthly_up
-    case 'down':
-      return net_monthly_down
-    case 'min':
-      return Math.min(net_monthly_up, net_monthly_down)
-    case 'max':
-      return Math.max(net_monthly_up, net_monthly_down)
-    case 'sum':
-    default:
-      return net_monthly_up + net_monthly_down
-  }
-})
-
-const hasTrafficLimit = computed(() => (data.value?.traffic_limit ?? 0) > 0)
-
-const trafficUsedPercentage = computed(() => {
-  const trafficLimit = data.value?.traffic_limit ?? 0
-  if (trafficLimit <= 0)
-    return 0
-
-  return Math.min((trafficUsed.value / trafficLimit) * 100, 100)
-})
+const trafficUsed = computed(() => data.value ? getTrafficUsed(data.value) : 0)
+const hasTrafficLimit = computed(() => data.value ? showTrafficProgress(data.value) : false)
+const trafficUsedPercentage = computed(() => data.value ? getTrafficUsedPercentage(data.value) : 0)
 
 const trafficUsageText = computed(() => {
   if (!hasTrafficLimit.value)
