@@ -748,6 +748,8 @@ function trafficLimitType(value: unknown): string {
     return 'down'
   if (type === 'ul' || type === 'up')
     return 'up'
+  if (type === 'min' || type === 'max')
+    return type
   return 'sum'
 }
 

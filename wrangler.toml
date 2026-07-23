@@ -1,7 +1,6 @@
 name = "cf-server-monitor-theme-emerald"
 main = "cloudflare/worker.ts"
 compatibility_date = "2025-01-01"
-
 keep_vars = true
 
 [build]
