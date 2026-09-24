@@ -1,6 +1,7 @@
 import type { CurrencyCode } from '@/utils/financeHelper'
 import type { Client, NodeStatus, NodeStatusPing, PingRecord, PingWindowPoint, StatusRecord } from '@/utils/rpc'
 import { isSupportedCurrency, normalizedCurrencyMap } from '@/utils/financeHelper'
+import { requestTurnstileToken } from '@/utils/turnstile'
 
 const ONLINE_THRESHOLD_MS = 5 * 60 * 1000
 const MB = 1024 * 1024
@@ -607,6 +608,82 @@ function authHeaders(baseUrl: string, initialHeaders?: HeadersInit): Headers {
   return headers
 }
 
+function clearTurnstileSession(baseUrl: string): void {
+  try {
+    const host = new URL(baseUrl, window.location.origin).hostname
+    localStorage.removeItem(`turnstile_verified_${host}`)
+    localStorage.removeItem('turnstile_verified')
+    localStorage.removeItem('turnstile_token')
+  }
+  catch {}
+}
+
+function storeTurnstileVerified(baseUrl: string, verified: string): void {
+  const host = new URL(baseUrl, window.location.origin).hostname
+  localStorage.setItem(`turnstile_verified_${host}`, verified)
+  localStorage.setItem('turnstile_verified', verified)
+  localStorage.removeItem('turnstile_token')
+}
+
+/** 并发 403 共享同一次重新验证，避免一次性 token 被重复消费。 */
+let turnstileRefreshPromise: Promise<boolean> | null = null
+
+async function resolveTurnstileSiteKey(apiIndex: number): Promise<string | null> {
+  const cached = cachedSiteConfigs[apiIndex] ?? cachedSiteConfigs[0]
+  if (cached && enabled(cached.turnstile_enabled) && cached.turnstile_site_key)
+    return cached.turnstile_site_key
+
+  // Cold start：本地 verified 已过期被清掉后，裸请求拿 site key（不带 Turnstile 头）
+  const bases = getApiBases()
+  const baseUrl = bases[apiIndex] ?? bases[0] ?? ''
+
+  try {
+    const response = await fetch(`${baseUrl}/api/config`)
+    if (!response.ok)
+      return null
+    const data = await response.json() as SiteConfig
+    if (!enabled(data.turnstile_enabled) || !data.turnstile_site_key)
+      return null
+    if (!cachedSiteConfigs.length)
+      cachedSiteConfigs = [data]
+    else
+      cachedSiteConfigs[apiIndex] = data
+    return data.turnstile_site_key
+  }
+  catch {
+    return null
+  }
+}
+
+/**
+ * Turnstile verified 失效后：弹窗重新验证，用 token 换新的 verified，再让调用方重试原请求。
+ */
+async function refreshTurnstileSession(apiIndex: number): Promise<boolean> {
+  if (turnstileRefreshPromise)
+    return turnstileRefreshPromise
+
+  turnstileRefreshPromise = (async () => {
+    const siteKey = await resolveTurnstileSiteKey(apiIndex)
+    if (!siteKey)
+      return false
+
+    try {
+      const token = await requestTurnstileToken(siteKey)
+      localStorage.setItem('turnstile_token', token)
+      // allowRetry=false：换票本身失败时不再嵌套弹窗
+      await request('/api/config', apiIndex, {}, false)
+      return true
+    }
+    catch {
+      return false
+    }
+  })().finally(() => {
+    turnstileRefreshPromise = null
+  })
+
+  return turnstileRefreshPromise
+}
+
 function isCrossOriginRequest(baseUrl: string): boolean {
   if (typeof window === 'undefined')
     return false
@@ -619,7 +696,12 @@ function isCrossOriginRequest(baseUrl: string): boolean {
   }
 }
 
-async function request<T>(path: string, apiIndex = 0, options: RequestInit = {}): Promise<T> {
+async function request<T>(
+  path: string,
+  apiIndex = 0,
+  options: RequestInit = {},
+  allowTurnstileRetry = true,
+): Promise<T> {
   const bases = getApiBases()
   const baseUrl = bases[apiIndex] ?? bases[0] ?? ''
   let response: Response
@@ -651,21 +733,17 @@ async function request<T>(path: string, apiIndex = 0, options: RequestInit = {})
       ? String((data as { error: unknown }).error)
       : `HTTP ${response.status}`
     if (response.status === 403) {
-      const host = new URL(baseUrl, window.location.origin).hostname
-      localStorage.removeItem(`turnstile_verified_${host}`)
-      localStorage.removeItem('turnstile_verified')
+      clearTurnstileSession(baseUrl)
+      if (allowTurnstileRetry && await refreshTurnstileSession(apiIndex))
+        return request(path, apiIndex, options, false)
     }
     throw new ApiError(message, response.status, apiIndex)
   }
 
   if (data && typeof data === 'object' && 'turnstile_verified' in data) {
     const verified = String((data as { turnstile_verified?: unknown }).turnstile_verified || '')
-    if (verified) {
-      const host = new URL(baseUrl, window.location.origin).hostname
-      localStorage.setItem(`turnstile_verified_${host}`, verified)
-      localStorage.setItem('turnstile_verified', verified)
-      localStorage.removeItem('turnstile_token')
-    }
+    if (verified)
+      storeTurnstileVerified(baseUrl, verified)
   }
   return data as T
 }

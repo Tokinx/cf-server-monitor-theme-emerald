@@ -15,17 +15,7 @@ import {
   hasMultipleApiBases,
   isEnabledValue,
 } from '@/utils/api'
-
-interface TurnstileApi {
-  render: (container: HTMLElement, options: {
-    'sitekey': string
-    'theme'?: 'auto' | 'light' | 'dark'
-    'callback': (token: string) => void
-    'error-callback'?: () => void
-    'expired-callback'?: () => void
-  }) => string
-  remove: (widgetId: string) => void
-}
+import { requestTurnstileToken } from '@/utils/turnstile'
 
 interface WsMessage {
   type: string
@@ -59,86 +49,7 @@ function sampleHasField(data: Record<string, unknown>, ...keys: string[]): boole
   return keys.some(key => data[key] !== undefined && data[key] !== null && data[key] !== '')
 }
 
-const TURNSTILE_SCRIPT = 'https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit'
 const LIVE_UPDATE_INTERVAL_MS = 1000
-let turnstileScriptPromise: Promise<TurnstileApi> | null = null
-
-function getTurnstile(): TurnstileApi | undefined {
-  return (window as unknown as { turnstile?: TurnstileApi }).turnstile
-}
-
-function loadTurnstile(): Promise<TurnstileApi> {
-  const existing = getTurnstile()
-  if (existing)
-    return Promise.resolve(existing)
-  if (turnstileScriptPromise)
-    return turnstileScriptPromise
-
-  turnstileScriptPromise = new Promise((resolve, reject) => {
-    const script = document.createElement('script')
-    script.src = TURNSTILE_SCRIPT
-    script.async = true
-    script.defer = true
-    script.onload = () => {
-      const api = getTurnstile()
-      if (api)
-        resolve(api)
-      else
-        reject(new Error('Turnstile SDK 加载失败'))
-    }
-    script.onerror = () => reject(new Error('Turnstile SDK 加载失败'))
-    document.head.appendChild(script)
-  })
-  return turnstileScriptPromise
-}
-
-async function requestTurnstileToken(siteKey: string): Promise<string> {
-  const api = await loadTurnstile()
-  return new Promise((resolve, reject) => {
-    const overlay = document.createElement('div')
-    overlay.className = 'fixed inset-0 z-50 grid place-items-center bg-background/90 px-4 backdrop-blur-md'
-    overlay.innerHTML = `
-      <div class="w-full max-w-sm rounded-md border border-emerald-600/15 bg-background p-5 shadow-2xl">
-        <div class="mb-1 text-base font-semibold">访问验证</div>
-        <div class="mb-5 text-sm text-muted-foreground">完成 Cloudflare 验证后继续加载监控数据。</div>
-        <div data-turnstile class="min-h-16"></div>
-      </div>`
-    document.body.appendChild(overlay)
-    const container = overlay.querySelector<HTMLElement>('[data-turnstile]')
-    if (!container) {
-      overlay.remove()
-      reject(new Error('Turnstile 容器创建失败'))
-      return
-    }
-
-    let widgetId = ''
-    const cleanup = () => {
-      if (widgetId) {
-        try {
-          api.remove(widgetId)
-        }
-        catch {}
-      }
-      overlay.remove()
-    }
-    widgetId = api.render(container, {
-      'sitekey': siteKey,
-      'theme': 'auto',
-      'callback': (token) => {
-        cleanup()
-        resolve(token)
-      },
-      'error-callback': () => {
-        cleanup()
-        reject(new Error('Turnstile 验证失败'))
-      },
-      'expired-callback': () => {
-        cleanup()
-        reject(new Error('Turnstile 验证已过期'))
-      },
-    })
-  })
-}
 
 class InitManager {
   private appStore = useAppStore()
