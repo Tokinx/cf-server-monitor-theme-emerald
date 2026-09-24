@@ -87,7 +87,7 @@ function openPingDialog() {
         <img :src="getOSImage(props.node.os, props.node.source_index)" :alt="getOSName(props.node.os)" class="size-4">
         <img
           v-if="hasRegion(props.node.region)" :src="getApiAssetUrl(`flags/${getRegionCode(props.node.region).toLowerCase()}.svg`, props.node.source_index)"
-          :alt="getRegionDisplayName(props.node.region)" class="size-5 shrink-0 rounded-sm"
+          :alt="getRegionDisplayName(props.node.region)" class="size-5 shrink-0 rounded-sm drop-shadow-[0_0_2px_rgba(0,0,0,0.1)]"
         >
       </div>
     </template>

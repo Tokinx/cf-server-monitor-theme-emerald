@@ -198,7 +198,7 @@ function getRowTransitionStyle(index: number): Record<string, string> {
                 <div class="flex gap-1 items-center text-xs font-semibold">
                   <img
                     v-if="hasRegion(node.region)" :src="getFlagSrc(node.region, node.source_index)"
-                    :alt="getRegionDisplayName(node.region)" class="size-5 rounded-sm"
+                    :alt="getRegionDisplayName(node.region)" class="size-5 rounded-sm drop-shadow-[0_0_2px_rgba(0,0,0,0.1)]"
                   >
                   <span class="truncate">{{ node.name }}</span>
                 </div>

@@ -298,7 +298,7 @@ const trafficProgressStyle = computed(() => ({
         <div class="text-lg font-bold flex gap-2 items-center">
           <img
             :src="getApiAssetUrl(`flags/${getRegionCode(data.region).toLowerCase()}.svg`, data.source_index)" :alt="getRegionDisplayName(data.region)"
-            class="size-6 rounded-sm"
+            class="size-6 rounded-sm drop-shadow-[0_0_2px_rgba(0,0,0,0.1)]"
           >
           <span>{{ data.name }}</span>
         </div>

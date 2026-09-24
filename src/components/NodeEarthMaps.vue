@@ -153,7 +153,7 @@ const chartOption = computed<EChartsOption>(() => ({
       const p = params as { name: string, data: { code: string, online: number, offline: number } }
       if (!p.data)
         return ''
-      const flag = `<img src="${getApiAssetUrl(`flags/${p.data.code.toLowerCase()}.svg`)}" style="width:16px;height:16px;vertical-align:middle;margin-right:2px" />`
+      const flag = `<img src="${getApiAssetUrl(`flags/${p.data.code.toLowerCase()}.svg`)}" style="width:16px;height:16px;vertical-align:middle;margin-right:2px;filter:drop-shadow(0 0 2px rgba(0,0,0,0.1))" />`
       const dot = (color: string) => `<span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:${color}"></span>`
       const online = `<span style="display:flex;gap:4px;align-items:center">${dot(chartThemeColors.value.dotEmerald)} ${p.data.online}</span>`
       const offline = p.data.offline > 0 ? ` <span style="display:flex;gap:4px;align-items:center">${dot(chartThemeColors.value.dotYellow)} ${p.data.offline}</span>` : ''

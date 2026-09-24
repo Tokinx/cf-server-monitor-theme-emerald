@@ -509,7 +509,7 @@ function formatRate(bytesPerSec: number): string {
       >
         <img
           :src="getApiAssetUrl(`flags/${cluster.code.toLowerCase()}.svg`)" :alt="cluster.code"
-          class="size-4 block absolute -bottom-2 -left-2 z-1"
+          class="size-4 block absolute -bottom-2 -left-2 z-1 drop-shadow-[0_0_2px_rgba(0,0,0,0.1)]"
         >
         <div class="relative z-2 bg-background/60 rounded py-0.5 px-1 text-xs zoom-80 items-start justify-center text-nowrap">
           <div class="text-green-600 flex flex-row items-center gap-0.5">
