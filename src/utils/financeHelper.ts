@@ -1,32 +1,42 @@
 import type { NodeData } from '@/stores/nodes'
 
+/** Rates/symbols aligned with CF Server Monitor `finance.js` FINANCE_CURRENCY_CONFIG. */
 const FINANCE_CURRENCY_CONFIG = {
+  AED: { rate: 0.5435, symbol: 'د.إ' },
   AUD: { rate: 0.20941, symbol: 'A$' },
+  BDT: { rate: 18.02, symbol: '৳' },
   BRL: { rate: 0.74734, symbol: 'R$' },
   CAD: { rate: 0.20691, symbol: 'C$' },
   CHF: { rate: 0.11746, symbol: 'CHF' },
   CNY: { rate: 1, symbol: '¥' },
   CZK: { rate: 3.0787, symbol: 'Kč' },
   DKK: { rate: 0.95296, symbol: 'kr' },
+  EGP: { rate: 7.15, symbol: 'EGP' },
   EUR: { rate: 0.1275, symbol: '€' },
   GBP: { rate: 0.11027, symbol: '£' },
-  HKD: { rate: 1.1594, symbol: '$' },
+  GTQ: { rate: 1.14, symbol: 'Q' },
+  HKD: { rate: 1.1594, symbol: 'HK$' },
   HUF: { rate: 44.688, symbol: 'Ft' },
   IDR: { rate: 2622.37, symbol: 'Rp' },
   ILS: { rate: 0.43085, symbol: '₪' },
   INR: { rate: 14.0178, symbol: '₹' },
   ISK: { rate: 18.4626, symbol: 'kr' },
-  JPY: { rate: 23.707, symbol: '¥' },
+  JPY: { rate: 23.707, symbol: '¥JPY' },
   KRW: { rate: 224.11, symbol: '₩' },
   KZT: { rate: 64, symbol: '₸' },
+  LKR: { rate: 44.4, symbol: 'LKR' },
+  MNT: { rate: 530, symbol: '₮' },
   MXN: { rate: 2.5472, symbol: 'Mex$' },
   MYR: { rate: 0.59945, symbol: 'RM' },
+  NGN: { rate: 225.6, symbol: '₦' },
   NOK: { rate: 1.4096, symbol: 'kr' },
   NZD: { rate: 0.2535, symbol: 'NZ$' },
   PHP: { rate: 8.9288, symbol: '₱' },
+  PKR: { rate: 41.5, symbol: '₨' },
   PLN: { rate: 0.54138, symbol: 'zł' },
   RON: { rate: 0.66769, symbol: 'lei' },
   RUB: { rate: 11.9, symbol: '₽' },
+  SAR: { rate: 0.555, symbol: '﷼' },
   SEK: { rate: 1.3895, symbol: 'kr' },
   SGD: { rate: 0.18975, symbol: 'S$' },
   THB: { rate: 4.8172, symbol: '฿' },
@@ -73,37 +83,60 @@ const EXCHANGE_RATE_APIS = [
     parse: (data: unknown) => (data as { rates?: unknown }).rates,
   },
 ] as const
+/**
+ * Wire-symbol / alias → ISO code.
+ * Keys mirror CF Server Monitor `CURRENCY_ALIASES` + admin `CURRENCY_OPTIONS`
+ * (notably `¥JPY` for yen, `₣` for CHF, `kr`→SEK).
+ */
 const EXPLICIT_CURRENCY_ALIASES: Record<string, CurrencyCode> = {
   '$': 'USD',
   'US$': 'USD',
-  'A$': 'AUD',
-  'CA$': 'CAD',
-  'CN¥': 'CNY',
-  'C$': 'CAD',
-  'HK$': 'HKD',
-  'NZ$': 'NZD',
-  'RMB': 'CNY',
-  'Rp': 'IDR',
-  'R$': 'BRL',
-  'RM': 'MYR',
-  'S$': 'SGD',
-  '€': 'EUR',
-  '£': 'GBP',
-  '₩': 'KRW',
-  '₪': 'ILS',
-  '₽': 'RUB',
-  '₸': 'KZT',
-  '₴': 'UAH',
-  '₺': 'TRY',
-  '₣': 'CHF',
-  '₹': 'INR',
-  '₫': 'VND',
-  '฿': 'THB',
-  '₱': 'PHP',
-  'zł': 'PLN',
   '¥': 'CNY',
   '￥': 'CNY',
+  'RMB': 'CNY',
+  'CN¥': 'CNY',
+  '¥JPY': 'JPY',
   'JP¥': 'JPY',
+  '€': 'EUR',
+  '£': 'GBP',
+  'HK$': 'HKD',
+  'A$': 'AUD',
+  'C$': 'CAD',
+  'CA$': 'CAD',
+  'S$': 'SGD',
+  'NZ$': 'NZD',
+  '₣': 'CHF',
+  '₩': 'KRW',
+  '₹': 'INR',
+  '฿': 'THB',
+  '₫': 'VND',
+  '₱': 'PHP',
+  'Rp': 'IDR',
+  'RP': 'IDR',
+  'RM': 'MYR',
+  '₺': 'TRY',
+  '₪': 'ILS',
+  '৳': 'BDT',
+  '₨': 'PKR',
+  'LKR': 'LKR',
+  '₮': 'MNT',
+  '₽': 'RUB',
+  'R$': 'BRL',
+  // Admin "克朗" option stores `kr`; upstream maps it to SEK.
+  'kr': 'SEK',
+  'KR': 'SEK',
+  'zł': 'PLN',
+  'ZŁ': 'PLN',
+  '₴': 'UAH',
+  '₸': 'KZT',
+  'R': 'ZAR',
+  '₦': 'NGN',
+  'EGP': 'EGP',
+  'د.إ': 'AED',
+  '﷼': 'SAR',
+  'Q': 'GTQ',
+  'Mex$': 'MXN',
+  'MEX$': 'MXN',
 }
 const CURRENCY_SYMBOL_ALIASES = createCurrencySymbolAliases()
 
@@ -120,12 +153,36 @@ export const CURRENCY_SYMBOL_TO_CODE = Object.fromEntries(
 ) as Record<string, CurrencyCode>
 
 export function normalizeCurrency(currency: string | null | undefined): CurrencyCode {
-  const value = String(currency || 'CNY').trim().toUpperCase()
+  const raw = String(currency || 'CNY').trim()
+  if (!raw)
+    return 'CNY'
 
-  if (isSupportedCurrency(value))
-    return value
+  const upper = raw.toUpperCase()
+  if (isSupportedCurrency(upper))
+    return upper
 
-  return EXPLICIT_CURRENCY_ALIASES[value] || CURRENCY_SYMBOL_ALIASES[value] || 'CNY'
+  // Match upstream: try original casing then uppercased (e.g. Rp / zł / د.إ).
+  return EXPLICIT_CURRENCY_ALIASES[raw]
+    || EXPLICIT_CURRENCY_ALIASES[upper]
+    || CURRENCY_SYMBOL_ALIASES[raw]
+    || CURRENCY_SYMBOL_ALIASES[upper]
+    || 'CNY'
+}
+
+/**
+ * Symbol used when rendering a node's configured price.
+ * Prefer the API wire value (e.g. `¥JPY`) so yen is not confused with CNY `¥`.
+ */
+export function getCurrencyDisplaySymbol(currency: string | null | undefined): string {
+  const raw = String(currency || '¥').trim() || '¥'
+  if (raw === '￥')
+    return '¥'
+
+  // Non-ISO wire symbols from CF Server Monitor — show as returned.
+  if (!/^[A-Za-z]{3}$/.test(raw))
+    return raw
+
+  return CURRENCY_SYMBOLS[normalizeCurrency(raw)] ?? raw
 }
 
 export function isSupportedCurrency(currency: string): currency is CurrencyCode {

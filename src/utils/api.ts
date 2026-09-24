@@ -856,9 +856,10 @@ function normalizeCurrencyField(value: unknown): string | null {
   if (!raw)
     return null
 
+  const upper = raw.toUpperCase()
   return normalizedCurrencyMap[raw]
-    ?? normalizedCurrencyMap[raw.toUpperCase()]
-    ?? (isSupportedCurrency(raw) ? raw : null)
+    ?? normalizedCurrencyMap[upper]
+    ?? (isSupportedCurrency(upper) ? upper : null)
 }
 
 const ISO_CURRENCY_CODE_REGEX = /^[A-Z]{3}$/i
@@ -910,15 +911,30 @@ export function adaptServerBilling(server: Pick<CfServer, 'price' | 'billing_cyc
   const parsedPrice = parsePriceAmount(server.price)
   const legacyBillingCycle = parseLegacyBillingCycle(server.price) ?? BILLING_CYCLE_DAYS.month
   const explicitBillingCycle = parseBillingCycle(server.billing_cycle)
-  const explicitCurrency = normalizeCurrencyField(server.currency)
 
   return {
     price: parsedPrice.price,
     priceConfigured: parsedPrice.configured,
     billingCycle: explicitBillingCycle ?? legacyBillingCycle,
-    currency: explicitCurrency ?? detectLegacyCurrency(server.price),
+    currency: resolveDisplayCurrency(server),
     autoRenewal: enabled(server.auto_renewal),
   }
+}
+
+/**
+ * Keep the API `currency` wire value for display (e.g. `¥JPY`).
+ * Finance math still goes through `normalizeCurrency()` → ISO codes.
+ */
+function resolveDisplayCurrency(server: Pick<CfServer, 'price' | 'currency'>): string {
+  const raw = String(server.currency ?? '').trim()
+  const normalized = raw === '￥' ? '¥' : raw
+  if (normalized) {
+    const upper = normalized.toUpperCase()
+    if (normalizeCurrencyField(normalized) || isSupportedCurrency(upper))
+      return normalized
+  }
+
+  return detectLegacyCurrency(server.price)
 }
 
 function parseTrafficLimit(value: unknown): number {

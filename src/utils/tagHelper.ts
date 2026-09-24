@@ -1,5 +1,5 @@
 import dayjs from 'dayjs'
-import { CURRENCY_SYMBOLS, normalizeCurrency } from '@/utils/financeHelper'
+import { getCurrencyDisplaySymbol } from '@/utils/financeHelper'
 
 /** 计费周期类型 */
 export type BillingCycleType = 'monthly' | 'quarterly' | 'semi_annual' | 'annual' | 'biennial' | 'triennial' | 'quadrennial' | 'quinquennial' | 'once' | 'custom'
@@ -355,8 +355,7 @@ export function formatPrice(price: number, currency: string = '￥', lang: 'zh-C
   if (numericPrice === 0 || numericPrice === -1 || !Number.isFinite(numericPrice))
     return lang === 'zh-CN' ? '免费' : 'Free'
 
-  const code = normalizeCurrency(currency)
-  const symbol = CURRENCY_SYMBOLS[code] ?? (currency || '¥')
+  const symbol = getCurrencyDisplaySymbol(currency)
   return `${symbol}${numericPrice}`
 }
 

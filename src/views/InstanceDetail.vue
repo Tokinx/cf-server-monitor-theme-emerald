@@ -17,7 +17,7 @@ import { subscribeNodeLive } from '@/utils/init'
 import { getTrafficUsed, getTrafficUsedPercentage, showTrafficProgress } from '@/utils/nodeHelper'
 import { getOSImage, getOSName } from '@/utils/osImageHelper'
 import { getRegionCode, getRegionDisplayName } from '@/utils/regionHelper'
-import { getBillingCycleText, getExpireText, getExpireTextClass } from '@/utils/tagHelper'
+import { formatPrice, getBillingCycleText, getExpireText, getExpireTextClass } from '@/utils/tagHelper'
 
 interface GpuInfo {
   id?: number | string
@@ -140,8 +140,8 @@ const nodePriceText = computed(() => {
   if (Number(data.value.price) <= 0)
     return appStore.lang === 'zh-CN' ? '免费' : 'Free'
 
-  const priceCNY = financeHelper.calculateValueCNY(data.value, exchangeRates.value)
-  return `${formatFinanceMetricValue(priceCNY, financeBaseCurrency.value)} / ${getBillingCycleText(data.value.billing_cycle, appStore.lang)}`
+  // Show the configured price in the API currency (e.g. ¥JPY0.5), not the finance base.
+  return `${formatPrice(data.value.price, data.value.currency, appStore.lang)} / ${getBillingCycleText(data.value.billing_cycle, appStore.lang)}`
 })
 
 const monthlyAverageCostText = computed(() => {
