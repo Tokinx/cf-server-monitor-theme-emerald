@@ -11,6 +11,7 @@ import { useAppStore } from '@/stores/app'
 import { useNodesStore } from '@/stores/nodes'
 import * as financeHelper from '@/utils/financeHelper'
 import { formatBytesPerSecondSplit, formatBytesSplit } from '@/utils/helper'
+import { resolveMetricSlots } from '@/utils/metricSlots'
 
 const props = defineProps<{
   nodes?: NodeData[]
@@ -36,6 +37,7 @@ const metricSwitchTransitionProps = computed(() => ({
 }))
 
 const openFinanceCard = ref(false)
+const canViewPrice = computed(() => appStore.canViewPrice)
 
 function getMetricSwitchStyle(index: number): Record<string, string> {
   return {
@@ -173,6 +175,9 @@ const cardGridClass = computed(() => showVisualPanel.value
   ? 'h-42 -mt-42 md:mt-0 col-span-12 row-start-3 z-9 md:h-auto md:col-span-6 md:row-start-1 grid grid-cols-12 grid-rows-2 gap-2'
   : 'col-span-1 grid grid-cols-3 md:grid-cols-6 gap-2')
 
+/** show_price 关闭时「剩余价值」卡片不渲染，其余卡片按顺序前移（见 utils/metricSlots.ts） */
+const metricSlots = computed(() => resolveMetricSlots(canViewPrice.value, showVisualPanel.value))
+
 onMounted(async () => {
   exchangeRateBaseCurrency.value = financeHelper.getStoredFinanceCurrency()
   excludeFreeNodes.value = financeHelper.shouldExcludeFreeNodes()
@@ -193,7 +198,7 @@ onMounted(async () => {
         class="group h-full border-none rounded-md transition-all"
         :class="[
           pickSurfaceClass('bg-background/60 hover:bg-background', 'bg-background/50 hover:bg-background backdrop-blur-xs'),
-          showVisualPanel ? 'col-span-4 row-span-1 col-start-1 row-start-1' : 'col-span-1 row-start-1 col-start-1 min-h-18 md:min-h-24 md:row-start-1 md:col-start-1',
+          metricSlots.memory,
         ]"
         content-class="h-full !p-3"
       >
@@ -225,7 +230,7 @@ onMounted(async () => {
         class="group h-full border-none rounded-md transition-all"
         :class="[
           pickSurfaceClass('bg-background/60 hover:bg-background', 'bg-background/50 hover:bg-background backdrop-blur-xs'),
-          showVisualPanel ? 'col-span-4 row-span-1 col-start-1 row-start-2' : 'col-span-1 row-start-2 col-start-1 min-h-18 md:min-h-24 md:row-start-1 md:col-start-2',
+          metricSlots.disk,
         ]"
         content-class="h-full !p-3"
       >
@@ -252,8 +257,9 @@ onMounted(async () => {
         </div>
       </CardX>
       <div
+        v-if="canViewPrice"
         class="relative w-full h-full"
-        :class="showVisualPanel ? 'col-span-4 row-span-1 col-start-5 row-start-1' : 'col-span-1 row-start-1 col-start-2 min-h-18 md:min-h-24 md:row-start-1 md:col-start-3'"
+        :class="metricSlots.finance"
       >
         <CardX
           hoverable
@@ -357,7 +363,7 @@ onMounted(async () => {
         class="group h-full border-none rounded-md transition-all"
         :class="[
           pickSurfaceClass('bg-background/60 hover:bg-background', 'bg-background/50 hover:bg-background backdrop-blur-xs'),
-          showVisualPanel ? 'col-span-4 row-span-1 col-start-5 row-start-2' : 'col-span-1 row-start-2 col-start-2 min-h-18 md:min-h-24 md:row-start-1 md:col-start-4',
+          metricSlots.traffic,
         ]"
         content-class="h-full !p-3"
       >
@@ -396,7 +402,7 @@ onMounted(async () => {
         class="group h-full border-none rounded-md transition-all"
         :class="[
           pickSurfaceClass('bg-background/60 hover:bg-background', 'bg-background/50 hover:bg-background backdrop-blur-xs'),
-          showVisualPanel ? 'col-span-4 row-span-1 col-start-9 row-start-1' : 'col-span-1 row-start-1 col-start-3 min-h-18 md:min-h-24 md:row-start-1 md:col-start-5',
+          metricSlots.speedUp,
         ]"
         content-class="h-full !p-3"
       >
@@ -425,7 +431,7 @@ onMounted(async () => {
         class="group h-full border-none rounded-md transition-all"
         :class="[
           pickSurfaceClass('bg-background/60 hover:bg-background', 'bg-background/50 hover:bg-background backdrop-blur-xs'),
-          showVisualPanel ? 'col-span-4 row-span-1 col-start-9 row-start-2' : 'col-span-1 row-start-2 col-start-3 min-h-18 md:min-h-24 md:row-start-1 md:col-start-6',
+          metricSlots.speedDown,
         ]"
         content-class="h-full !p-3"
       >

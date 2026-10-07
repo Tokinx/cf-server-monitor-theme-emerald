@@ -31,6 +31,18 @@ const useAppStore = defineStore('app', () => {
   const isLoggedIn = ref<boolean>(false)
   const connectionError = ref<boolean>(false)
 
+  /**
+   * 后端站点开关 sysConfig.show_price：访客是否可见价格/价值信息。
+   * 旧版后端不返回该字段时视为开启（与内置主题 `?? true` 一致）。
+   */
+  const showPrice = ref<boolean>(true)
+
+  /**
+   * 当前请求方是否可见价格/价值信息。
+   * 管理员（已登录，/api/config 返回 authorization）不受 show_price 影响。
+   */
+  const canViewPrice = computed<boolean>(() => showPrice.value || isLoggedIn.value)
+
   // 首页滚动位置记忆
   const homeScrollPosition = ref<number>(0)
 
@@ -243,6 +255,14 @@ const useAppStore = defineStore('app', () => {
     isLoggedIn.value = loggedIn
   }
 
+  /**
+   * 记录 /api/servers 的 sysConfig.show_price。
+   * undefined（旧版后端不返回该字段）按 true 处理。
+   */
+  function updateShowPrice(value?: boolean) {
+    showPrice.value = value ?? true
+  }
+
   return {
     loading,
     themeMode,
@@ -278,11 +298,14 @@ const useAppStore = defineStore('app', () => {
     backgroundBlur,
     backgroundOverlay,
     isLoggedIn,
+    showPrice,
+    canViewPrice,
     publicSettings,
     connectionError,
     homeScrollPosition,
     updateThemeMode,
     updateLoginState,
+    updateShowPrice,
   }
 })
 

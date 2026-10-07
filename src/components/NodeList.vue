@@ -38,6 +38,9 @@ const rowStaggerLimit = 12
 const appStore = useAppStore()
 const { pickSurfaceClass } = useBackgroundSurface()
 
+// show_price 关闭时访客不可见价格，仅保留剩余时间（管理员不受影响）
+const canViewPrice = computed(() => appStore.canViewPrice)
+
 const columns: ColumnConfig[] = [
   { key: 'status', label: '状态', width: '40px', sortable: true },
   { key: 'os', label: '系统', width: '40px', sortable: true },
@@ -204,8 +207,8 @@ function getRowTransitionStyle(index: number): Record<string, string> {
                 </div>
                 <div v-if="node.uptime" class="text-[11px] text-muted-foreground/70 truncate">
                   {{ formatUptime(node.uptime ?? 0) }}
-                  <template v-if="getPriceTags(node, appStore.lang).length > 0">
-                    <span v-for="(tag, tagIndex) in getPriceTags(node, appStore.lang)" :key="tagIndex" class="ml-1">
+                  <template v-if="getPriceTags(node, appStore.lang, canViewPrice).length > 0">
+                    <span v-for="(tag, tagIndex) in getPriceTags(node, appStore.lang, canViewPrice)" :key="tagIndex" class="ml-1">
                       <template v-if="tag.highlightValue">
                         <span>{{ tag.prefix }}</span>
                         <span :class="getRemainingTimeTagClass(node)">{{ tag.highlightValue }}</span>

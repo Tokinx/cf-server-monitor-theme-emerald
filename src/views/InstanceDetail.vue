@@ -183,6 +183,9 @@ const remainingTimeValueClass = computed(() => {
   return getExpireTextClass(data.value.expired_at)
 })
 
+/** show_price 关闭时访客不可见价格/价值，仅保留剩余时间（管理员不受影响） */
+const canViewPrice = computed(() => appStore.canViewPrice)
+
 const metricCards = computed<MetricCard[]>(() => {
   if (!data.value)
     return []
@@ -192,7 +195,7 @@ const metricCards = computed<MetricCard[]>(() => {
   const remainingTime = splitMetricValue(remainingTimeText.value)
   const remainingValue = splitMetricValue(remainingValueText.value)
 
-  return [
+  const priceCards: MetricCard[] = [
     {
       label: '节点价格',
       value: nodePrice.value,
@@ -205,6 +208,19 @@ const metricCards = computed<MetricCard[]>(() => {
       unit: monthlyAverageCost.unit,
       icon: 'tabler:receipt-2',
     },
+  ]
+
+  const trailingCards: MetricCard[] = [
+    {
+      label: '剩余价值',
+      value: remainingValue.value,
+      unit: remainingValue.unit,
+      icon: 'tabler:coins',
+    },
+  ]
+
+  return [
+    ...(canViewPrice.value ? priceCards : []),
     {
       label: '剩余时间',
       value: remainingTime.value,
@@ -212,12 +228,7 @@ const metricCards = computed<MetricCard[]>(() => {
       icon: 'tabler:calendar-dollar',
       valueClass: remainingTimeValueClass.value,
     },
-    {
-      label: '剩余价值',
-      value: remainingValue.value,
-      unit: remainingValue.unit,
-      icon: 'tabler:coins',
-    },
+    ...(canViewPrice.value ? trailingCards : []),
   ]
 })
 
@@ -307,7 +318,7 @@ const trafficProgressStyle = computed(() => ({
         </Badge>
       </div>
 
-      <div class="px-4 grid grid-cols-2 gap-4 lg:grid-cols-4">
+      <div class="px-4 grid grid-cols-2 gap-4" :class="canViewPrice ? 'lg:grid-cols-4' : 'lg:grid-cols-2'">
         <CardX
           v-for="item in metricCards" :key="item.label" hoverable size="small"
           class="group h-full border-none transition-all rounded-md"
