@@ -42,7 +42,9 @@ const diskStatus = computed(() => getStatus(diskPercentage.value))
 const trafficUsedPercentage = computed(() => getTrafficUsedPercentage(props.node))
 const trafficStatus = computed(() => getTrafficLevel(trafficUsedPercentage.value))
 const trafficUsed = computed(() => getTrafficUsed(props.node))
-const priceTags = computed(() => getPriceTags(props.node, appStore.lang))
+// show_price 关闭时访客不可见价格，仅保留剩余时间（管理员不受影响）
+const canViewPrice = computed(() => appStore.canViewPrice)
+const priceTags = computed(() => getPriceTags(props.node, appStore.lang, canViewPrice.value))
 const remainingTimeTagClass = computed(() => getRemainingTimeTagClass(props.node))
 const customTags = computed(() => getCustomTags(props.node))
 
