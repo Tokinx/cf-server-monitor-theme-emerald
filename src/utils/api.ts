@@ -1303,10 +1303,8 @@ export class CfMonitorApi {
   async getPublicSettings(): Promise<PublicSettings> {
     const configs = cachedSiteConfigs.length ? cachedSiteConfigs : await fetchSiteConfigs()
     const first = configs[0]
-    const loggedIn = configs.some(config => config.authorization)
-    // 未登录访客最长可看 24h；已登录且开启 show_long_history 时最长可看近 7 天（168h），
-    // 多后端聚合模式不支持长历史，回退到 24h
-    const historyHours = loggedIn ? (first?.show_long_history && !hasMultipleApiBases() ? 168 : 24) : 24
+    // CF 历史接口硬上限 168h；Tab 展示与默认主题一致，未登录时由图表层拦截 >24h 的请求
+    const historyHours = 168
     return {
       allow_cors: true,
       custom_body: '',
