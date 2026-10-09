@@ -5,11 +5,13 @@ import { Icon } from '@iconify/vue'
 import dayjs from 'dayjs'
 import { computed, onMounted, ref, shallowRef, watch } from 'vue'
 import VChart from 'vue-echarts'
+import LongHistoryLoginDialog from '@/components/LongHistoryLoginDialog.vue'
 import { CardX } from '@/components/ui/card-x'
 import { Empty } from '@/components/ui/empty'
 import { Spinner } from '@/components/ui/spinner'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { useBackgroundSurface } from '@/composables/useBackgroundSurface'
+import { getGuestMaxChartTimeRangeLabel, requiresLongHistoryLogin, showLongHistoryLoginPrompt } from '@/composables/useLongHistoryAuth'
 import { useAppStore } from '@/stores/app'
 import { useNodesStore } from '@/stores/nodes'
 import { DEFAULT_CHART_TIME_RANGE, getAvailableChartTimeRanges } from '@/utils/chartTimeRange'
@@ -27,7 +29,7 @@ const { pickSurfaceClass } = useBackgroundSurface()
 const nodesStore = useNodesStore()
 
 // 从 publicSettings 获取记录保留时间
-const maxRecordPreserveTime = computed(() => appStore.publicSettings?.record_preserve_time || 720)
+const maxRecordPreserveTime = computed(() => appStore.publicSettings?.record_preserve_time || 168)
 
 // 使用 store 中的 isDark computed
 const isDark = computed(() => appStore.isDark)
@@ -103,6 +105,7 @@ const selectedHours = computed(() => {
   return view?.hours ?? DEFAULT_CHART_TIME_RANGE.hours
 })
 const isRealtime = computed(() => selectedView.value === DEFAULT_CHART_TIME_RANGE.label)
+const lastCommittedView = ref<string>(DEFAULT_CHART_TIME_RANGE.label)
 
 watch(availableViews, (views) => {
   if (!views.some(view => view.label === selectedView.value))
@@ -808,7 +811,14 @@ watch(nodeInfo, (node) => {
     appendRealtimeStatus(node)
 })
 
-watch(selectedView, () => {
+watch(selectedView, (label) => {
+  const hours = availableViews.value.find(v => v.label === label)?.hours ?? DEFAULT_CHART_TIME_RANGE.hours
+  if (requiresLongHistoryLogin(hours) && !appStore.isLoggedIn) {
+    selectedView.value = lastCommittedView.value || getGuestMaxChartTimeRangeLabel()
+    showLongHistoryLoginPrompt()
+    return
+  }
+  lastCommittedView.value = label
   isInitialLoad.value = true // 切换视图时重置首次加载状态
   fetchData()
 })
@@ -826,6 +836,7 @@ onMounted(() => {
 
 <template>
   <div class="flex flex-col gap-4">
+    <LongHistoryLoginDialog />
     <!-- 时间选择器 -->
     <Tabs v-model="selectedView" class="w-full items-center">
       <TabsList :class="pickSurfaceClass('h-8 bg-background/60 pointer-events-auto rounded-md', 'h-8 bg-background/50 backdrop-blur-xl pointer-events-auto rounded-md')">

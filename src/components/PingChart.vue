@@ -3,12 +3,14 @@ import { Icon } from '@iconify/vue'
 import dayjs from 'dayjs'
 import { computed, onMounted, ref, shallowRef, watch } from 'vue'
 import VChart from 'vue-echarts'
+import LongHistoryLoginDialog from '@/components/LongHistoryLoginDialog.vue'
 import { Button } from '@/components/ui/button'
 import { DataTooltip } from '@/components/ui/data-tooltip'
 import { Empty } from '@/components/ui/empty'
 import { Spinner } from '@/components/ui/spinner'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { useBackgroundSurface } from '@/composables/useBackgroundSurface'
+import { getGuestMaxChartTimeRangeLabel, requiresLongHistoryLogin, showLongHistoryLoginPrompt } from '@/composables/useLongHistoryAuth'
 import { useAppStore } from '@/stores/app'
 import { useNodesStore } from '@/stores/nodes'
 import { DEFAULT_CHART_TIME_RANGE, getAvailableChartTimeRanges } from '@/utils/chartTimeRange'
@@ -64,6 +66,7 @@ const selectedHours = computed(() => {
   const view = availableViews.value.find(v => v.label === selectedView.value)
   return view?.hours ?? DEFAULT_CHART_TIME_RANGE.hours
 })
+const lastCommittedView = ref<string>(DEFAULT_CHART_TIME_RANGE.label)
 
 // 初始化默认视图
 watch(availableViews, (views) => {
@@ -779,7 +782,14 @@ const pingChartOption = computed(() => {
 
 // ==================== 生命周期 ====================
 
-watch(selectedView, () => {
+watch(selectedView, (label) => {
+  const hours = availableViews.value.find(v => v.label === label)?.hours ?? DEFAULT_CHART_TIME_RANGE.hours
+  if (requiresLongHistoryLogin(hours) && !appStore.isLoggedIn) {
+    selectedView.value = lastCommittedView.value || getGuestMaxChartTimeRangeLabel()
+    showLongHistoryLoginPrompt()
+    return
+  }
+  lastCommittedView.value = label
   selectedTaskIds.value = []
   fetchRecords()
 })
@@ -803,6 +813,7 @@ onMounted(() => {
 
 <template>
   <div class="flex flex-col gap-4">
+    <LongHistoryLoginDialog />
     <!-- 时间选择器 -->
     <Tabs v-model="selectedView" class="w-full items-center">
       <div class="min-w-0 flex-1 overflow-x-auto pointer-events-auto">
